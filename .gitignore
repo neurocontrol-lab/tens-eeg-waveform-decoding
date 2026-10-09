@@ -1,0 +1,40 @@
+# Participant data and behavioral records
+/EEGData/
+**/Subject*_data/
+*.xdf
+*.csv
+*.fif
+*.mat
+*.npy
+*.npz
+*.h5
+*.hdf5
+
+# Archives, derived results, caches, and temporary files
+*.zip
+*.png
+*.mp4
+/tmp/
+/output/
+**/*_cache/
+**/*_Cache*/
+**/*Preprocessed_Data*/
+**/*ICA_Components*/
+**/*SourceLocalization_Auto*/
+**/*SourceLocalization_Manual*/
+**/Task4_ROI_EpochPlot_Output/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+
+# Personal training certificate and local credentials
+/Docs/CCTS CIRTIfication.pdf
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+.DS_Store
+Thumbs.db

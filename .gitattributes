@@ -1,0 +1,7 @@
+*.pdf binary
+*.docx binary
+*.py text eol=lf
+*.md text eol=lf
+*.txt text
+.gitignore text eol=lf
+.gitattributes text eol=lf
