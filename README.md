@@ -12,6 +12,7 @@ The immediate decoding target comprises five waveform classes: sine, square, cen
 - `EEG_Codes_Export/*.pdf`: experimental procedures and Jason Whitson's undergraduate thesis.
 - `Docs/`: motivation paper.
 - `PROJECT_REVIEW.md`: document/code review, dataset overview, known inconsistencies, and proposed decoding analysis.
+- `Docs/EXPERIMENT_CLARIFICATIONS.md`: Jason's confirmed trigger table, Task 4 protocol, timing limits, and pending audit questions.
 
 ## Experimental task numbering
 
@@ -26,9 +27,13 @@ Waveform identity and chosen-versus-unchosen preference are separate targets. Th
 
 ## Current status
 
-The original export is preserved for provenance. It has been reviewed but has not been executed or validated in this workspace. A waveform-decoding training pipeline is not yet included.
+The original PDFs are preserved for provenance. The exported code has been reviewed and its ramp labels corrected using Jason's clarification supplied on 2026-10-13. It has not been executed on the EEG dataset or validated end to end in this workspace. A waveform-decoding training pipeline is not yet included.
 
-Before execution, resolve the increasing/decreasing ramp trigger-name mismatch, configure local dataset/output paths, reconcile the supplied master CSV filename, and validate behavioral-to-EEG event alignment. Details are in `PROJECT_REVIEW.md` and the supplied stage READMEs.
+The confirmed Task 4 mapping is Sine=239, Square=240, Triangle=241, LinDec=242, LinInc=243; CSV numbers 4 and 5 mean LinDec and LinInc respectively. Task 3 ramp codes are LinDec=233-235 and LinInc=236-238. Task 4 uses subjects 3-12 (subject 2 had an incompatible earlier protocol) and a race-to-five preference rule.
+
+Within-pair stimulation is approximately 1.4 seconds apart; Jason recommends a maximum 1.2-second post-trigger epoch. The planned first classifier uses 50-500 ms, with longer windows as secondary analyses after checking actual intervals. These are analysis plans, not implemented decoding features. See [experiment clarifications](Docs/EXPERIMENT_CLARIFICATIONS.md).
+
+Before execution, configure local dataset/output paths, reconcile the supplied master CSV filename, and validate stable trigger extraction and behavioral-to-EEG alignment. The exported loader currently detects transitions without Jason's recommended debouncing. Saved current-monitor recordings, physical onset timing, and failed/missed-trial handling remain follow-up questions.
 
 The code imports NumPy, pandas, Matplotlib, MNE, pyxdf, and SciPy; some optional visualization helpers also use imageio. Dependency versions have not yet been pinned or tested. Source localization requires MNE fsaverage assets. Treat the original scripts' working-directory assumptions as part of setup.
 

@@ -2,6 +2,8 @@
 
 Reviewed 9 October 2026. Scope: email attachment, motivation paper, procedures, thesis, exported Python scripts and READMEs, dataset inventory, and a sample XDF header. No preprocessing or model training was run, and no analysis dependencies were installed.
 
+Updated 13 October 2026 with Jason Whitson's clarification supplied in the email thread. His trigger table resolves the ramp identity, Task 4 stopping rule, and subject 2 exclusion. Full confirmed protocol, planned baseline, and remaining audit questions: [experiment clarifications](Docs/EXPERIMENT_CLARIFICATIONS.md).
+
 ## Objective
 
 Prof. Mohsen Rakhshan's latest email (25 September) sets the immediate goal: classify the delivered stimulation waveform from EEG. The wider goal is understanding which stimulation conditions produce more natural-feeling sensations for sensory restoration. The thread records completed CIRTification training and approval of the user's addition to the team on 24 September.
@@ -29,7 +31,7 @@ The thesis describes 11 healthy participants (nine male, two female), left media
 
 Thresholds use a one-up/two-down staircase, 250 microamp steps, and five reversals. Task 3 uses threshold, threshold +250 microamps, and threshold +500 microamps, nominally ten repetitions per combination: 150 trials total per participant. Two subjects received extra amplitude levels for particular waveforms, requiring exclusions from relevant amplitude-specific analyses.
 
-Task 4 presents all ten waveform pairs at threshold with randomized order and asks which felt more natural. This is a preference task, unlike Collu's match-to-sample discrimination. The thesis methods say a pair ends after ten selections of one waveform; its results describe a race to five. Another section says 150 epochs per waveform, conflicting with 150 total trials in the design. Resolve these against actual acquisition records.
+Task 4 presents all ten waveform pairs at threshold with randomized order and asks which felt more natural. This is a preference task, unlike Collu's match-to-sample discrimination. Jason confirms race to five: a comparison ends when either waveform has five preference selections, resolving the thesis's ten-selection statement. Subject 2 used an incompatible older Task 4 protocol and is excluded from Task 4, not automatically from Task 3. Within-pair stimulation is approximately 1.4 seconds apart; Jason recommends at most 1.2 seconds post-trigger. Another thesis section says 150 epochs per waveform, conflicting with 150 total Task 3 trials in the design; this count discrepancy remains unresolved.
 
 Sources: EEG_Codes_Export/Procedures of stimulation project.pdf; EEG_Codes_Export/UG Thesis - Beyond the Square Pulse_ Waveform Shape EEG Correlates and the.pdf
 
@@ -57,8 +59,10 @@ A sample subject 3 Task 4 XDF header confirms a SAGA EEG stream at 1,000 Hz and 
 
 ## Issues before decoding
 
-- Ramp labels conflict: preprocessing labels 242 as LinInc and 243 as LinDec; downstream task4_source_loc.py reverses them and says CSV waveform 4 is decreasing, 5 increasing. Numeric events survive, but name-based selection can disagree across stages. The code comments describe a previous correction; the export lacks generation code needed to independently confirm physical identity. Preserve numeric codes until verified.
-- Data paths differ: stage 1 expects EEG_Practice/SubjectN_data while this workspace uses EEGData/SubjectN_data. Later stages expect output folders in their working directory. Preference analysis expects Master_Data_ToSub12.csv, but the supplied file has ' (1)' in its name. README1's --refi should be --refit.
+- Ramp identity resolved by Jason's authoritative table: Task 4 LinDec=242, LinInc=243; Task 3 LinDec=233-235, LinInc=236-238; CSV waveform 4=LinDec, 5=LinInc. The main preprocessing and both legacy helper copies are now corrected to match downstream analysis. Preserve numeric codes and audit stale names in prior outputs/caches before reuse.
+- Data paths differ: stage 1 expects EEG_Practice/SubjectN_data while this workspace uses EEGData/SubjectN_data. Later stages expect output folders in their working directory. Preference analysis expects Master_Data_ToSub12.csv, but the supplied file has ' (1)' in its name. README1's CLI typo is now corrected to --refit.
+- Jason recommends stable-trigger debouncing and expected-sequence checks. The current loader detects transitions without a minimum stable duration. Inspect run lengths before implementing the duration criterion; log rejected/errant events and keep original onset samples.
+- The thesis documents triggers sent at waveform start and a CBLCFMA current-monitor path into DAQ analog input. Saved monitor recordings, clock alignment, and measured trigger-to-current delay/jitter remain unconfirmed. Acquisition code is not a prerequisite for the first trigger-aligned baseline.
 - Preference alignment uses sequential forward scanning of trigger pairs. Missing/rejected/extra events can match later occurrences and silently misalign labels. Preserve original event IDs and audit all matches and omissions.
 - Main preprocessing omits explicit mastoid referencing and bad-channel detection/interpolation described in the thesis/older pipeline. Fp1 calibration targets 10–20 blink events/minute and needs visual validation. Source drivers assume rank from ICA component count/exclusions; verify this against reconstructed data before accepting it.
 - Sliding-window significance is exploratory and uncorrected across windows/ROIs. Within-window Holm corrections do not address the full search. Cluster tests exist but are skipped by default for all-ROI analysis. Do not select classifier ROIs on the full dataset and then treat held-out scores as independent.
@@ -70,10 +74,14 @@ Build an event-level manifest first: subject, task, file, original sample/timest
 
 Then establish five-class single-trial sensor-space baselines. Task 4 supplies threshold-level trials; Task 3 provides amplitude-stratified complementary analysis. Keep within-subject and held-out-subject evaluations separate, with pair/block grouping where needed and training-fold-only feature selection, scaling, and tuning. Report balanced accuracy, macro-F1, confusion matrices, and per-subject results, with 20% balanced five-class reference and structure-preserving permutations. Use pre-stimulus controls and post-stimulus window comparisons to detect block/order confounds and residual stimulation/frontal artifacts. Quantify amplitude/charge dependence. Waveform-label decoding alone does not establish shape-specific cortical or naturalness decoding.
 
+The proposed first Task 4 experiment uses subjects 3-12, fixed-window mean-amplitude features from 50-500 ms, and a simple sensor-space classifier. Compare first/second presentations and preceding-waveform effects; retain pair/comparison grouping in folds. Predefine longer-window secondary analyses ending at 800 ms and at most 1.2 seconds after checking actual event gaps. Existing saved +500 ms epochs need regeneration for those analyses. Shorter windows do not eliminate physiological carryover; at a 1.4-second gap, a first epoch ending at 1.2 seconds shares about 50 ms with the second epoch's -250 ms baseline. The classifier and debounced manifest have not been implemented yet.
+
 ## Questions for Prof. Rakhshan / Jason
 
-1. What acquisition evidence confirms increasing/decreasing ramp identity and CSV numbering?
-2. Why is subject 2 excluded from the final Task 4 branch, and what is omitted Task 2?
-3. What is the actual Task 4 stopping rule and how are repeated/restarted trials recorded?
-4. Can the stimulation, feature-extraction, classifier, and diagnostic/report files be shared?
-5. Is the initial target within-subject decoding, generalization to unseen subjects, or both?
+Resolved: waveform mapping and CSV numbering, subject 2's Task 4 incompatibility, and race-to-five stopping. Jason endorsed the proposed waveform-decoding goal. The current plan evaluates within participants first, then unseen participants.
+
+1. Was the current-monitor input saved, where are those recordings or delivery logs, and how were they aligned with SAGA EEG? Was trigger-to-current timing checked?
+2. For Tasks 3 and 4, were failed, interrupted, or repeated trials retained/marked or removed before sharing? Do not assume that only successful trials were retained.
+3. How were Task 4 missed responses recorded and handled in race-to-five counts? Naturalness choices are preferences, not correctness labels; the separate detected-waveform field's meaning remains to be confirmed.
+4. What is omitted Task 2, and how should the inconsistent Task 3 epoch-count statement be interpreted?
+5. Are the historical feature-extraction, classifier, and diagnostic/report files available for reproducing preference results?

@@ -25,14 +25,15 @@ warnings.filterwarnings('ignore')
 SineThresh = 224
 SquareThresh = 227
 TriangleThresh = 230
-LinIncThresh = 233
-LinDecThresh = 236
+# Jason Whitson's clarification supplied 2026-10-13: higher ramp codes = LinInc.
+LinIncThresh = 236
+LinDecThresh = 233
 
 Sine_T4 = 239
 Square_T4 = 240
 Triangle_T4 = 241
-LinInc_T4 = 242
-LinDec_T4 = 243
+LinInc_T4 = 243
+LinDec_T4 = 242
 
 # Trigger mapping dictionary
 #uncomment if task 3

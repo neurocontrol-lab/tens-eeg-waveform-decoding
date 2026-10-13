@@ -7,6 +7,16 @@ The two main codes used to perform source localization are "August27_Task4_ROI_C
 python August27_Task4_ROI_ChosenUnchosen_Auto.py --variant autoeog33
 python August27_Task4_ROI_ANOVA_Auto.py --variant autoeog33 --rois all --method eLORETA
 
-Two methods can be used, ELORETA or dSPM. If no method is specified, then both will be generated. The variant is locked to auroeog33, as that is the preprocessing method that I chose as final, and represents the only method of preprocessing provided in the stage one files. The other two python files provide crucial functions that the two working codes call. These codes are quite resource intensive, so ensure you run these when you have a decent amount of time on your hands to wait on the output.
+The implemented methods are dSPM, sLORETA, and eLORETA. One method runs per invocation; the default is dSPM. Use --variant autoeog33 for the final preprocessing supplied in stage one, although the CLI accepts other variants whose outputs may not be available. The supporting Python files provide crucial functions that the two working codes call. These codes are quite resource intensive, so allow time for the output.
 
 The output ROIs will be shaded when an ANOVA analysis signifies significant differences (p < 0.05) between the classes in its specific window.
+
+Project clarification update (2026-10-13):
+- Jason confirms Sine=239, Square=240, Triangle=241, LinDec=242, LinInc=243. CSV waveform 4=LinDec and 5=LinInc; task4_source_loc.py already uses this mapping.
+- Use subjects 3-12 for Task 4; subject 2 had an incompatible older protocol. A comparison ends when one waveform has five preference selections (race to five).
+- Chosen/unchosen labels are relative naturalness preferences, not correct/incorrect responses or delivered-waveform identity. Missing-response and failed/repeated-trial handling are pending clarification.
+- Audit sequential CSV-to-epoch pair matching for missing/extra events; do not infer that a matched pair is valid merely because its codes are expected.
+- The supplied CSV is named Master_Data_ToSub12 (1).csv locally, while the driver expects Master_Data_ToSub12.csv. Resolve the local path/name before execution; do not commit behavioral CSVs.
+- The implemented --method choices are dSPM, sLORETA, and eLORETA, with dSPM as the default; one method runs per invocation. autoeog33 is the supplied final preprocessing variant, although other variants are accepted by the CLI.
+- Sliding-window significance is exploratory and uncorrected across windows/ROIs. These scripts do not implement the proposed single-epoch waveform classifier.
+Timing, event-audit requirements, and the planned baseline: ../../Docs/EXPERIMENT_CLARIFICATIONS.md

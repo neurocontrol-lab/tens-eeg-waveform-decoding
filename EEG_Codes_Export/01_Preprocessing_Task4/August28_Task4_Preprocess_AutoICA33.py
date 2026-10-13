@@ -52,7 +52,8 @@ N_COMPONENTS = 33
 CACHE_DIR = "August28_Task4_ICA_Cache33"
 
 BLANK_PRE_MS, BLANK_POST_MS = 2.0, 10.0
-TRIGGER_MAPPING = {"Sine": 239, "Square": 240, "Triangle": 241, "LinInc": 242, "LinDec": 243}
+# Jason Whitson's clarification supplied 2026-10-13: higher ramp code = LinInc.
+TRIGGER_MAPPING = {"Sine": 239, "Square": 240, "Triangle": 241, "LinInc": 243, "LinDec": 242}
 TMIN, TMAX, BASELINE = -0.250, 0.500, (-0.250, 0)
 
 

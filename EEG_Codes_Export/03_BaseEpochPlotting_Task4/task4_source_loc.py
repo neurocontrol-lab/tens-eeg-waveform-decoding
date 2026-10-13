@@ -16,7 +16,8 @@ This module adds only what's genuinely Task4-specific:
     never did that step)
   - the corrected waveform-trigger mapping (Task4_Preprocess_blank10ms.py /
     FeatureExtractionT4.py's WAVEFORM_NUM_TO_TRIGGER has the same 242/243
-    LinInc/LinDec swap documented for Task3 -- see project memory)
+    LinInc/LinDec swap documented for Task3; Jason confirmed the correction
+    in the email clarification supplied 2026-10-13)
   - chosen ("natural") vs unchosen ("unnatural") epoch labeling from
     Master_Data_ToSub12.csv, replicating the sequential trigger-pointer
     matching algorithm already established in FeatureExtractionT4.py
@@ -36,24 +37,17 @@ import numpy as np
 
 
 # ---------------------------------------------------------------------------
-# Waveform <-> trigger mapping (corrected for the 242/243 LinInc/LinDec
-# swap -- see project memory; same root-cause bug as Task3's 233-238 swap).
-# The raw CSV/hardware convention has LinInc=242, LinDec=243; the true
-# mapping is LinInc=243, LinDec=242.
+# Jason Whitson's authoritative table, supplied in the email thread
+# 2026-10-13: LinDec=242, LinInc=243 (higher ramp trigger = increase).
+# Earlier exported labels were reversed; raw integer codes are unchanged.
 # ---------------------------------------------------------------------------
 
 WAVEFORM_TRIGGERS = {
     "Sine": 239, "Square": 240, "Triangle": 241, "LinInc": 243, "LinDec": 242,
 }
 TRIGGER_TO_WAVEFORM = {v: k for k, v in WAVEFORM_TRIGGERS.items()}
-# CSV "T4 Waveform 1"/"T4 Waveform 2" columns encode 1-5 in Sine/Square/
-# Triangle/LinInc/LinDec list-position order, but the CSV was generated
-# using the ORIGINAL (buggy, unswapped) code-to-name assignment -- i.e.
-# position 4 was labeled "LinInc" by the buggy code, but the buggy code's
-# "LinInc" pointed at trigger 242, which is actually LinDec. So CSV number
-# 4's true identity is LinDec (trigger 242), and CSV number 5's true
-# identity is LinInc (trigger 243) -- the reverse of a naive name-based
-# mapping. Confirmed directly against Master_Data_ToSub12.csv (2026-08-08).
+# Jason also confirms CSV waveform numbers:
+# 1=Sine, 2=Square, 3=Triangle, 4=LinDec, 5=LinInc.
 WAVEFORM_NUM_TO_TRIGGER = {
     1: WAVEFORM_TRIGGERS["Sine"], 2: WAVEFORM_TRIGGERS["Square"],
     3: WAVEFORM_TRIGGERS["Triangle"], 4: WAVEFORM_TRIGGERS["LinDec"],
