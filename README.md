@@ -13,6 +13,9 @@ The immediate decoding target comprises five waveform classes: sine, square, cen
 - `Docs/`: motivation paper.
 - `PROJECT_REVIEW.md`: document/code review, dataset overview, known inconsistencies, and proposed decoding analysis.
 - `Docs/EXPERIMENT_CLARIFICATIONS.md`: Jason's confirmed trigger table, Task 4 protocol, timing limits, and pending audit questions.
+- `experiments/`: central home for executable analysis pipelines and future experiment versions. See the [experiment index](experiments/README.md).
+- `experiments/task4_baseline/`: auditable event extraction and fixed sensor-space waveform classifiers, with pre-stimulus, onset, late-window, and order/history controls. See its [run guide](experiments/task4_baseline/README.md).
+- `Docs/BASELINE_RESULTS.md`: initial full-cohort results and interpretation limits (2026-10-16).
 
 ## Experimental task numbering
 
@@ -27,13 +30,13 @@ Waveform identity and chosen-versus-unchosen preference are separate targets. Th
 
 ## Current status
 
-The original PDFs are preserved for provenance. The exported code has been reviewed and its ramp labels corrected using Jason's clarification supplied on 2026-10-13. It has not been executed on the EEG dataset or validated end to end in this workspace. A waveform-decoding training pipeline is not yet included.
+The original PDFs are preserved for provenance. The legacy exported code has been reviewed and its ramp labels corrected using Jason's clarification supplied on 2026-10-13. That legacy ICA/source pipeline has not been validated end to end in this workspace. A separate minimal Task 4 baseline is now implemented in `experiments/task4_baseline/`; it runs directly from XDF and the behavioral CSV without MNE or ICA. Use the baseline run guide for setup, scientific limits, and ignored local result locations.
 
 The confirmed Task 4 mapping is Sine=239, Square=240, Triangle=241, LinDec=242, LinInc=243; CSV numbers 4 and 5 mean LinDec and LinInc respectively. Task 3 ramp codes are LinDec=233-235 and LinInc=236-238. Task 4 uses subjects 3-12 (subject 2 had an incompatible earlier protocol) and a race-to-five preference rule.
 
-Within-pair stimulation is approximately 1.4 seconds apart; Jason recommends a maximum 1.2-second post-trigger epoch. The planned first classifier uses 50-500 ms, with longer windows as secondary analyses after checking actual intervals. These are analysis plans, not implemented decoding features. See [experiment clarifications](Docs/EXPERIMENT_CLARIFICATIONS.md).
+Within-pair stimulation is approximately 1.4 seconds apart; Jason recommends a maximum 1.2-second post-trigger epoch. The implemented primary baseline uses 50-500 ms; longer windows beyond 500 ms remain future secondary analyses. See [experiment clarifications](Docs/EXPERIMENT_CLARIFICATIONS.md).
 
-Before execution, configure local dataset/output paths, reconcile the supplied master CSV filename, and validate stable trigger extraction and behavioral-to-EEG alignment. The exported loader currently detects transitions without Jason's recommended debouncing. Saved current-monitor recordings, physical onset timing, and failed/missed-trial handling remain follow-up questions.
+The new baseline accepts local dataset/CSV paths, debounces stable runs, and requires exact full-sequence CSV alignment. The legacy exported loader still detects transitions without debouncing. The baseline uses `T4 Naturalness Value` for responses and ignores zero-filled legacy `T4 Waveform Detected` for validity. Jason confirms saved current-monitor recordings exist on the collection laptop; their availability and physical trigger-to-current timing remain follow-up work. Raw data and per-participant results remain excluded from Git.
 
 The code imports NumPy, pandas, Matplotlib, MNE, pyxdf, and SciPy; some optional visualization helpers also use imageio. Dependency versions have not yet been pinned or tested. Source localization requires MNE fsaverage assets. Treat the original scripts' working-directory assumptions as part of setup.
 

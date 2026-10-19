@@ -1,0 +1,6 @@
+numpy>=2.0,<3
+pandas>=2.2,<4
+scipy>=1.13,<2
+scikit-learn>=1.5,<2
+pyxdf>=1.16,<2
+pytest>=8,<10

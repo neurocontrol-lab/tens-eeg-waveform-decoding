@@ -31,6 +31,7 @@ venv/
 
 # Personal training certificate and local credentials
 /Docs/CCTS CIRTIfication.pdf
+/Docs/References/CCTS CIRTIfication.pdf
 .env
 .env.*
 !.env.example
@@ -38,3 +39,15 @@ venv/
 *.key
 .DS_Store
 Thumbs.db
+
+# LaTeX build products
+*.aux
+*.log
+*.out
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+/Docs/task4_research_note/compile-console.txt
+
+# Local LaTeX project; only the standalone PDF in Docs is versioned
+/Docs/task4_research_note/
