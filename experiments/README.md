@@ -2,7 +2,7 @@
 
 Experiments have stable project-wide IDs, descriptive package names and physical category folders. Task/cohort information belongs in metadata and each run guide. Run all commands from the repository root.
 
-**Updated: 30 October 2026.** Ten completed experiments and three planned analyses. Completed means the specified analysis finished; it does not imply a positive scientific result.
+**Updated: 2026-10-30.** 11 completed, 2 planned. Completed means the specified analysis finished; it does not imply a positive scientific result.
 
 ## Status of completed and planned experiments
 
@@ -18,8 +18,8 @@ Experiments have stable project-wide IDs, descriptive package names and physical
 | E008 | [Time-resolved waveform, position and interaction effects](response_characterization/e008_time_resolved_effects/README.md) | response characterization | Task 4 | Completed | 2026-10-23 | [Results](../Docs/TASK4_TIME_RESOLVED_RESULTS.md) |
 | E009 | [Response uncertainty, earlier time coverage and sensitivity](uncertainty_and_sensitivity/e009_response_uncertainty_sensitivity/README.md) | uncertainty and sensitivity | Task 4 | Completed | 2026-10-24 | [Results](../Docs/TASK4_RESPONSE_FOLLOWUP.md) |
 | E010 | [Simple-pipeline EEG visual inspection](signal_quality/e010_simple_visual_inspection/README.md) | signal quality | Task 4 | Completed | 2026-10-30 | [Results](../Docs/TASK4_VISUAL_INSPECTION.md) |
-| E011 | Electrode-by-time-bin waveform repeatability | response characterization | Task 4 | Planned | - | - |
-| E012 | Within-participant inference and early/later waveform decoding | waveform decoding | Task 4 | Planned | - | - |
+| E011 | [Electrode-by-time-bin waveform repeatability](response_characterization/e011_electrode_bin_repeatability/README.md) | response characterization | Task 4 | Completed | 2026-10-30 | [Results](../Docs/E011_REPEATABILITY_RESULTS.md) |
+| E012 | Longer-window waveform decoding with LDA, RBF SVM and EEGNet | waveform decoding | Task 4 | Planned | - | - |
 | E013 | Classifier sensitivity to known EEG patterns | uncertainty and sensitivity | Task 4 | Planned | - | - |
 
 Planned IDs are reserved; no empty executable packages or results are created for them. Use Planned, In progress, Completed, Blocked or Superseded. Use Scheduled only when an execution has an actual schedule. Status labels do not start jobs or recurring automations.
@@ -41,7 +41,7 @@ How do voltage and slope patterns vary with waveform, electrode, time and presen
 - **E002** - Electrode, presentation-position and EEG-slope responses (completed).
 - **E006** - Multiscale EEG response characterization (completed).
 - **E008** - Time-resolved waveform, position and interaction effects (completed).
-- **E011** - Electrode-by-time-bin waveform repeatability (planned).
+- **E011** - Electrode-by-time-bin waveform repeatability (completed).
 
 ### [Single-epoch waveform decoding](waveform_decoding/README.md)
 
@@ -50,7 +50,7 @@ Can EEG features predict the delivered waveform on held-out data?
 - **E001** - Sensor-space voltage baseline (completed).
 - **E004** - Waveform decoding with xDAWN spatial features (completed).
 - **E005** - Waveform decoding with spectral and combined features (completed).
-- **E012** - Within-participant inference and early/later waveform decoding (planned).
+- **E012** - Longer-window waveform decoding with LDA, RBF SVM and EEGNet (planned).
 
 ### [Uncertainty and sensitivity](uncertainty_and_sensitivity/README.md)
 

@@ -15,11 +15,13 @@ def test_all_registered_completed_packages_import_and_planned_ids_are_only_reser
     assert len({e['id'] for e in registry}) == len(registry) == 13
     assert [e['id'] for e in registry] == [f'E{i:03d}' for i in range(1,14)]
     for e in registry:
-        if e['status'] == 'Completed':
+        if e['package'] is not None:
             assert e['dataset'] == 'Task 4'
             importlib.import_module(e['package'].replace('/','.'))
             assert (ROOT/e['package']/'README.md').is_file()
-            assert (ROOT/e['findings']).is_file()
+            assert e['status'] in {'In progress','Completed','Blocked','Superseded'}
+            if e['status'] == 'Completed':
+                assert (ROOT/e['findings']).is_file()
         else:
             assert e['status'] == 'Planned' and e['package'] is None
             assert not (ROOT/e['reserved_package']).exists()

@@ -27,6 +27,7 @@ The immediate decoding target comprises five waveform classes: sine, square, cen
 - `Docs/TASK4_RESPONSE_FOLLOWUP.md`: aggregate findings and interpretation of the response-analysis refinements (2026-10-23).
 - `Docs/task4_followup_research_note.pdf`: shareable research note consolidating the response, preprocessing, feature/decoding and sensitivity analyses (2026-10-26). Its LaTeX source project is kept locally and Git-ignored.
 - `experiments/signal_quality/e010_simple_visual_inspection/`: matched minimal and fixed 0.5-30 Hz band-pass EEG views by waveform, electrode and presentation position, without supplied ICA. See the [visual inspection note](Docs/TASK4_VISUAL_INSPECTION.md) (2026-10-30).
+- `experiments/response_characterization/e011_electrode_bin_repeatability/`: per-electrode/time-bin voltage, slope and curvature repeatability using the simple band-pass inputs, paired splits and participant uncertainty. See the [E011 findings](Docs/E011_REPEATABILITY_RESULTS.md) (2026-10-30).
 
 ## Experimental task numbering
 

@@ -158,17 +158,72 @@
       "title": "Electrode-by-time-bin waveform repeatability",
       "category": "response_characterization",
       "dataset": "Task 4",
-      "status": "Planned",
-      "package": null,
+      "status": "Completed",
+      "package": "experiments/response_characterization/e011_electrode_bin_repeatability",
       "reserved_package": "experiments/response_characterization/e011_electrode_bin_repeatability",
-      "last_completed_run": null,
-      "findings": null,
-      "canonical_outputs": [],
-      "legacy_package": null
+      "last_completed_run": "2026-10-30",
+      "findings": "Docs/E011_REPEATABILITY_RESULTS.md",
+      "canonical_outputs": [
+        "output/e011_repeatability_20261030",
+        "output/e011_waveform_views_20261030"
+      ],
+      "legacy_package": null,
+      "plan": {
+        "representations": [
+          "voltage_mean",
+          "slope_mean",
+          "slope_rms",
+          "curvature_mean",
+          "curvature_rms"
+        ],
+        "bin_widths_ms": [
+          1,
+          5,
+          25,
+          50,
+          100,
+          200
+        ],
+        "post_support_ms": [
+          50,
+          1188
+        ],
+        "common_summary_ms": [
+          50,
+          1050
+        ],
+        "derivative_estimator": "25-sample local quadratic Savitzky-Golay; 1-kHz data",
+        "preprocessing": "E010 simple 0.5-30 Hz band-pass and baseline; no ICA",
+        "repeats": 100,
+        "positions": "Separate first and second",
+        "inference": "Descriptive participant-bootstrap uncertainty; no feature selection",
+        "waveform_views": {
+          "status": "Completed",
+          "output": "output/e011_waveform_views_20261030",
+          "primary_view": "Individual participant and waveform",
+          "responses": [
+            "Total observed response",
+            "Context-adjusted waveform-specific deviation"
+          ],
+          "statistics": [
+            "Per-waveform split product",
+            "Signed response",
+            "RMS half disagreement",
+            "Sign agreement",
+            "Temporal pattern correlation",
+            "Joint scalp-time pattern correlation"
+          ],
+          "interval_ms": [
+            50,
+            1050
+          ],
+          "original_pooled_outputs_preserved": true
+        }
+      }
     },
     {
       "id": "E012",
-      "title": "Within-participant inference and early/later waveform decoding",
+      "title": "Longer-window waveform decoding with LDA, RBF SVM and EEGNet",
       "category": "waveform_decoding",
       "dataset": "Task 4",
       "status": "Planned",
@@ -177,7 +232,33 @@
       "last_completed_run": null,
       "findings": null,
       "canonical_outputs": [],
-      "legacy_package": null
+      "legacy_package": null,
+      "plan": {
+        "epoch_ms": [
+          50,
+          1050
+        ],
+        "bin_widths_ms": [
+          25,
+          50,
+          100,
+          200
+        ],
+        "decoders": [
+          "Shrinkage LDA",
+          "RBF SVM",
+          "Compact EEGNet"
+        ],
+        "eegnet_input": "Sampled voltage over the same epoch; one fixed architecture, predefined seeds; not one model per bin width",
+        "feature_selection": "Fixed candidates or training-fold selection only; never select from full-cohort E011 maps",
+        "controls": [
+          "Pre-trigger",
+          "Presentation position",
+          "Comparison/pair-grouped validation"
+        ],
+        "inference": "Formal cohort-level within-participant permutation assessment; account for tested comparisons",
+        "status": "Planned; no model fitting started"
+      }
     },
     {
       "id": "E013",
