@@ -128,6 +128,8 @@ capability of the local numerical report. No estimates are recomputed, selected
 or changed for publication. Source-array and image digests are recorded in the
 publication manifest. Keep the images directory beside the HTML when sharing.
 
+[Open the interactive image report online](https://htmlpreview.github.io/?https://github.com/neurocontrol-lab/tens-eeg-waveform-decoding/blob/main/Docs/Reports/E014/index.html).
+
 The maps supply products, response magnitude, disagreement and sign fractions
 at individual feature/bin locations. Temporal correlations span a declared
 time course; a single scalar location has no correlation on its own. Group

@@ -2,7 +2,7 @@
 
 - [E014 waveform-repeatability explorer](E014/index.html): pre-rendered maps and
   electrode/component traces, with participant, waveform, presentation, feature
-  and bin choices preserved. [Static gallery](E014/gallery.html).
+  and bin choices preserved. [Open interactive report online](https://htmlpreview.github.io/?https://github.com/neurocontrol-lab/tens-eeg-waveform-decoding/blob/main/Docs/Reports/E014/index.html) · [Static gallery](E014/gallery.html).
 
 Keep each report's `images/` folder beside its HTML when copying or hosting it.
 These publications contain rendered images and small summary tables. Full EEG,

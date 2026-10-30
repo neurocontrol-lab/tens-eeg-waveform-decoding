@@ -29,7 +29,7 @@ The immediate decoding target comprises five waveform classes: sine, square, cen
 - `experiments/signal_quality/e010_simple_visual_inspection/`: matched minimal and fixed 0.5-30 Hz band-pass EEG views by waveform, electrode and presentation position, without supplied ICA. See the [visual inspection note](Docs/TASK4_VISUAL_INSPECTION.md) (2026-10-30).
 - `experiments/response_characterization/e011_electrode_bin_repeatability/`: per-electrode/time-bin voltage, slope and curvature repeatability using the simple band-pass inputs, paired splits and participant uncertainty. See the [E011 findings](Docs/E011_REPEATABILITY_RESULTS.md) (2026-10-30).
 
-- `experiments/response_characterization/e014_all_electrode_repeatability/`: all-62-electrode, alpha/beta power and independently calibrated xDAWN repeatability, with matched sensor controls. See the [E014 findings](Docs/E014_REPEATABILITY_RESULTS.md) and [image report](Docs/Reports/E014/index.html) (2026-10-30).
+- `experiments/response_characterization/e014_all_electrode_repeatability/`: all-62-electrode, alpha/beta power and independently calibrated xDAWN repeatability, with matched sensor controls. See the [E014 findings](Docs/E014_REPEATABILITY_RESULTS.md), [image report files](Docs/Reports/E014/index.html), or [open the interactive report online](https://htmlpreview.github.io/?https://github.com/neurocontrol-lab/tens-eeg-waveform-decoding/blob/main/Docs/Reports/E014/index.html) (2026-10-30).
 
 ## Experimental task numbering
 

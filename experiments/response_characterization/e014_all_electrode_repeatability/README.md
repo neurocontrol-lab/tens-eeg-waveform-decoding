@@ -4,6 +4,8 @@
 
 Completed on 30 October 2026. See the [findings](../../../Docs/E014_REPEATABILITY_RESULTS.md).
 
+[Open the interactive image report online](https://htmlpreview.github.io/?https://github.com/neurocontrol-lab/tens-eeg-waveform-decoding/blob/main/Docs/Reports/E014/index.html).
+
 This extends repeatability, not classification. E012 decoding remains planned.
 Keep all 62 scalp electrodes, voltage/slope/curvature, alpha/beta total power and
 independently calibrated xDAWN features. Participant, waveform and first/second
