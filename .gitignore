@@ -15,7 +15,7 @@
 *.png
 *.mp4
 /tmp/
-/output/
+/output/*
 **/*_cache/
 **/*_Cache*/
 **/*Preprocessed_Data*/
@@ -52,3 +52,11 @@ Thumbs.db
 # Local LaTeX project; only the standalone PDF in Docs is versioned
 /Docs/task4_research_note/
 /Docs/task4_followup_research_note/
+
+# Local numerical reports share HTML only; the image publication is separate.
+!/output/e011_waveform_views_20261030/
+/output/e011_waveform_views_20261030/*
+!/output/e011_waveform_views_20261030/index.html
+!/output/e014_repeatability_20261030/
+/output/e014_repeatability_20261030/*
+!/output/e014_repeatability_20261030/index.html

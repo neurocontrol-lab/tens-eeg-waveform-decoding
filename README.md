@@ -29,6 +29,8 @@ The immediate decoding target comprises five waveform classes: sine, square, cen
 - `experiments/signal_quality/e010_simple_visual_inspection/`: matched minimal and fixed 0.5-30 Hz band-pass EEG views by waveform, electrode and presentation position, without supplied ICA. See the [visual inspection note](Docs/TASK4_VISUAL_INSPECTION.md) (2026-10-30).
 - `experiments/response_characterization/e011_electrode_bin_repeatability/`: per-electrode/time-bin voltage, slope and curvature repeatability using the simple band-pass inputs, paired splits and participant uncertainty. See the [E011 findings](Docs/E011_REPEATABILITY_RESULTS.md) (2026-10-30).
 
+- `experiments/response_characterization/e014_all_electrode_repeatability/`: all-62-electrode, alpha/beta power and independently calibrated xDAWN repeatability, with matched sensor controls. See the [E014 findings](Docs/E014_REPEATABILITY_RESULTS.md) and [image report](Docs/Reports/E014/index.html) (2026-10-30).
+
 ## Experimental task numbering
 
 | Experiment | Thesis label | Dataset/code label |
@@ -57,6 +59,8 @@ The baseline environment is recorded in `requirements-baseline-lock.txt`. The re
 ## Data handling
 
 This repository contains code and project documentation. Participant EEG recordings, behavioral CSV records, hand-map images, archives, derived outputs, and the personal training certificate are excluded by `.gitignore`. The accompanying dataset is held separately under the project's approved access arrangements.
+
+The E011 individual-waveform and E014 local `index.html` pages are explicit exceptions; their numerical payloads remain ignored. A separate image publication lives in `Docs/Reports/E014/`, containing pre-rendered map/curve sheets and lightweight HTML controls instead of the 7.21-GB numerical output. It preserves participant, waveform, presentation, representation, bin and electrode/component choices. Keep its `images/` directory beside the HTML when sharing or hosting it. Raw recordings, caches and the full numerical outputs remain local.
 
 In the original local workspace, recordings reside in `EEGData/SubjectN_data/`. The exported scripts generally expect `EEG_Practice/SubjectN_data/`; configure paths before running rather than uploading the dataset to GitHub.
 

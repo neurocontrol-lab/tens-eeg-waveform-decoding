@@ -272,6 +272,38 @@
       "findings": null,
       "canonical_outputs": [],
       "legacy_package": null
+    },
+    {
+      "id": "E014",
+      "title": "All-electrode, alpha/beta power and calibrated xDAWN repeatability",
+      "category": "response_characterization",
+      "dataset": "Task 4",
+      "status": "Completed",
+      "package": "experiments/response_characterization/e014_all_electrode_repeatability",
+      "reserved_package": "experiments/response_characterization/e014_all_electrode_repeatability",
+      "last_completed_run": "2026-10-30",
+      "findings": "Docs/E014_REPEATABILITY_RESULTS.md",
+      "canonical_outputs": [
+        "output/e014_all_electrode_cache_20261030",
+        "output/e014_repeatability_20261030"
+      ],
+      "legacy_package": null,
+      "plan": {
+        "channels": 62,
+        "cohort": "Frozen E011 595 complete pairs",
+        "features": [
+          "Voltage",
+          "First derivative",
+          "Second derivative",
+          "Alpha power",
+          "Beta power",
+          "Calibration-only xDAWN"
+        ],
+        "classifier_fitted": false,
+        "xdawn": "Independent calibration/A/B partitions with matched sensor controls",
+        "power": "500-ms Hann windows, 50-ms step; not millisecond power estimates"
+      },
+      "publication": "Docs/Reports/E014/index.html"
     }
   ]
 }
