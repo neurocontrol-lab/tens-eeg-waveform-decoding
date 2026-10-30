@@ -1,0 +1,128 @@
+"""Matched intervals, independent pre baseline and participant-level contrasts."""
+import itertools
+from experiments.provenance import recorded_source_digest
+import numpy as np
+import pandas as pd
+from scipy.signal import welch
+from experiments.response_characterization.e006_multiscale_responses.analysis import repeatability
+from experiments.response_characterization.e002_electrode_position_slope.analysis import t_squared
+
+INTERVALS = {'pre': (-.5,-.1), 'post': (.1,.5)}
+BASELINES = {'pre': (-.85,-.65), 'post': (-.25,-.05)}
+PLOT_CHANNELS = ('C3','C4','CP1','Pz')
+BRANCHES = ('minimal','cleaned')
+
+
+def source_digest(implementation, filename):
+    """Prior runs record both absolute module paths and relative helper paths."""
+    return recorded_source_digest(implementation, filename)
+
+
+def choose_verified_fit(candidates, recorded_cache_name):
+    """Candidates must already match the same saved SHA256; prefer the original cache."""
+    if not candidates:
+        raise ValueError('No original ICA matching its saved hash')
+    return next((p for p in candidates if p.parent.name == recorded_cache_name),sorted(candidates)[0])
+
+
+def mask_for(times, interval):
+    lo,hi = interval
+    return (times >= lo) & (times < hi)
+
+
+def epoch_input(data_v, timestamps, events, sfreq, average_reference=False):
+    """Keep the frozen cohort; fail rather than silently change paired inputs."""
+    offsets = np.arange(round(-.9*sfreq),round(.65*sfreq)+1)
+    times = offsets/sfreq
+    epochs = []
+    for row in events.itertuples():
+        ix = int(row.sample)+offsets
+        if ix[0] < 0 or ix[-1] >= data_v.shape[1]:
+            raise ValueError('Frozen cohort lacks required real padding')
+        if row.previous_gap_s <= .9 or row.next_gap_s <= .65:
+            raise ValueError('Neighboring trigger in padded epoch')
+        if np.any(np.abs(np.diff(timestamps[ix])-1/sfreq) > .1/sfreq):
+            raise ValueError('Timestamp irregularity in expanded padding')
+        trial = data_v[:,ix]*1e6
+        if not np.isfinite(trial).all():
+            raise ValueError('Nonfinite samples; do not silently drop a frozen trial')
+        if average_reference:
+            trial -= trial.mean(axis=0,keepdims=True)
+        epochs.append(trial)
+    epochs = np.stack(epochs)
+    pre_mean = epochs[:,:,mask_for(times,BASELINES['pre'])].mean(axis=-1,keepdims=True)
+    post_mean = epochs[:,:,mask_for(times,BASELINES['post'])].mean(axis=-1,keepdims=True)
+    epochs -= post_mean
+    return epochs,times,pre_mean-post_mean
+
+
+def pre_values(post_values, baseline_difference, spec):
+    """Constant baselines affect voltage, but cancel in derivatives and DoG."""
+    if spec['operator'] in ('voltage','gaussian'):
+        return post_values-baseline_difference
+    return post_values
+
+
+def interval_repeatability(values,times,weights,channels,name,period,sfreq):
+    mask = mask_for(times,INTERVALS[period])
+    n = int(round(.4*sfreq))
+    if int(mask.sum()) != n:
+        raise ValueError('Pre/post trace lengths must match exactly')
+    # The shared helper only selects [.1,.5); values are already transformed on real padding.
+    # Translate the selected pre interval without resampling or changing sample order.
+    helper_times = .1+np.arange(n)/sfreq
+    return repeatability(values[:,:,mask],helper_times,weights,channels,name)
+
+
+def signal_health(epochs,times,sfreq,period):
+    """Descriptive contamination indicators, not a new branch-specific rejection rule."""
+    x = epochs[:,:,mask_for(times,INTERVALS[period])]
+    ptp = np.ptp(x,axis=-1).max(axis=1)
+    f,psd = welch(x,fs=sfreq,nperseg=x.shape[-1],axis=-1,detrend='constant')
+    def fraction(lo,hi,den_hi):
+        numerator = psd[:,:,(f >= lo) & (f <= hi)].sum(axis=-1)
+        denominator = psd[:,:,(f >= 1) & (f <= den_hi)].sum(axis=-1)
+        ratio = np.divide(numerator,denominator,out=np.full_like(numerator,np.nan),where=denominator > 0)
+        return np.nanmedian(ratio,axis=1)
+    return pd.DataFrame(dict(event_index=np.arange(len(x)),max_channel_ptp_uv=ptp,
+        exceeds_500uv=ptp > 500.,line60_fraction=fraction(58,62,100),
+        high80_190_fraction=fraction(80,190,190)))
+
+
+def paired_contrasts(subject_medians):
+    """Three predeclared waveform-repeatability contrasts, jointly max-corrected."""
+    d = subject_medians
+    if d.duplicated(['subject','branch','period','representation','position']).any():
+        raise ValueError('Duplicate participant summaries')
+    table = d.pivot(index=['subject','representation','position'],columns=['branch','period'],
+                    values='waveform_deviation_r')
+    if table.isna().any().any() or len(table.columns) != 4:
+        raise ValueError('Every participant/representation/position needs both branches and periods')
+    deltas = pd.DataFrame(index=table.index)
+    deltas['post_minimal_minus_cleaned'] = table[('minimal','post')]-table[('cleaned','post')]
+    deltas['pre_minimal_minus_cleaned'] = table[('minimal','pre')]-table[('cleaned','pre')]
+    deltas['post_minus_pre_branch_difference'] = deltas.iloc[:,0]-deltas.iloc[:,1]
+    long = deltas.reset_index().melt(id_vars=['subject','representation','position'],
+                                     var_name='contrast',value_name='difference_r')
+    wide = long.pivot(index='subject',columns=['contrast','representation','position'],values='difference_r')
+    n = len(wide)
+    if n < 3:
+        return long,pd.DataFrame()
+    if n > 16:
+        raise ValueError('Exact participant sign flips support at most 16 subjects')
+    values = wide.to_numpy()
+    observed = t_squared(values[:,None,:])
+    counts = np.zeros(values.shape[1],int)
+    maxima = counts.copy()
+    for signs in itertools.product((-1.,1.),repeat=n):
+        null = t_squared((values*np.asarray(signs)[:,None])[:,None,:])
+        counts += null >= observed-1e-10
+        maxima += null.max() >= observed-1e-10
+    rows = []
+    for i,(contrast,representation,position) in enumerate(wide.columns):
+        rows.append(dict(contrast=contrast,representation=representation,position=position,
+            n_subjects=n,mean_difference_r=float(values[:,i].mean()),
+            median_difference_r=float(np.median(values[:,i])),statistic=float(observed[i]),
+            p_uncorrected=counts[i]/2**n,p_fwer=maxima[i]/2**n,
+            n_joint_tests=values.shape[1]))
+    return long,pd.DataFrame(rows)

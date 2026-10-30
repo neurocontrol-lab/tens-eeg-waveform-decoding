@@ -5,3 +5,5 @@
 *.txt text
 .gitignore text eol=lf
 .gitattributes text eol=lf
+# Preserve historical Python source bytes for SHA256 provenance checks.
+experiments/_provenance/sources/*.source -text

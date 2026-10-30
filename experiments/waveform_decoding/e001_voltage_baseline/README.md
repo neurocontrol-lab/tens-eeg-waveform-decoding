@@ -1,4 +1,6 @@
-# Task 4 single-epoch waveform baseline
+# E001 - Sensor-space voltage baseline
+
+**Dataset:** Task 4 | **Status:** Completed | [Central registry](../../README.md)
 
 This pipeline reads original SAGA XDF recordings and the master behavioral CSV. It predicts the delivered trigger class, not naturalness preference. Jason's table supplies the labels: 239=Sine, 240=Square, 241=Triangle, 242=LinDec, 243=LinInc. Only subjects 3-12 are supported.
 
@@ -16,13 +18,13 @@ Explicit `--rootdir=.` avoids pytest interpreting brackets in the Windows worksp
 
 ```powershell
 # Inspect and prepare one participant without fitting classifiers.
-& ./.venv/Scripts/python.exe -m experiments.task4_baseline --subjects 3 --audit-only --output output/task4_audit
+& ./.venv/Scripts/python.exe -m experiments.waveform_decoding.e001_voltage_baseline --subjects 3 --audit-only --output output/task4_audit
 
 # Small end-to-end run; 19 permutations are a smoke check, not strong inference.
-& ./.venv/Scripts/python.exe -m experiments.task4_baseline --subjects 3 --permutations 19 --output output/task4_smoke
+& ./.venv/Scripts/python.exe -m experiments.waveform_decoding.e001_voltage_baseline --subjects 3 --permutations 19 --output output/task4_smoke
 
 # Full cohort, including leave-one-subject-out evaluation.
-& ./.venv/Scripts/python.exe -m experiments.task4_baseline --permutations 99 --loso --output output/task4_baseline
+& ./.venv/Scripts/python.exe -m experiments.waveform_decoding.e001_voltage_baseline --permutations 99 --loso --output output/task4_baseline
 ```
 
 Defaults are `--data-dir EEGData` and `--master-csv "EEG_Codes_Export/02_SourceLocalization_Task4/Master_Data_ToSub12 (1).csv"`. Override either for another authorized local dataset location. Outputs are ignored by Git because manifests and predictions contain participant-level information. No data is uploaded.

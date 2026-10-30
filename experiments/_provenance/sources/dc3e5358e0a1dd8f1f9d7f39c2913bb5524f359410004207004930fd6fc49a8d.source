@@ -1,0 +1,160 @@
+"""Audit fixed features without feature selection or classification scoring."""
+import numpy as np
+import pandas as pd
+from sklearn.covariance import empirical_covariance, ledoit_wolf
+from sklearn.preprocessing import StandardScaler
+
+from experiments.task4_baseline.evaluate import model
+from experiments.task4_baseline.features import CHANNELS, WINDOWS
+
+
+def feature_contract(name, n_features):
+    """Describe the baseline's bin-major, channel-minor saved arrays."""
+    if name in WINDOWS:
+        lo, hi, step, _, _ = WINDOWS[name]
+        rows = [dict(feature=f'{channel}:{1000*(lo+k*step):g}-{1000*(lo+(k+1)*step):g}ms',
+                     unit='uV', channel=channel, start_s=lo+k*step, end_s=lo+(k+1)*step)
+                for k in range(round((hi-lo)/step)) for channel in CHANNELS]
+    elif name == 'order':
+        rows = [dict(feature=label, unit=unit) for label, unit in [
+            ('elapsed_s','s'), ('event_index','index'), ('position','category'),
+            ('previous_gap_s','s'), *[(f'previous_trigger_{code}','binary')
+                                      for code in (0,239,240,241,242,243)]]]
+    else:
+        raise ValueError('New feature bundles must supply their own names and units to the audit core')
+    if len(rows) != n_features:
+        raise ValueError(f'{name}: feature contract has {len(rows)} columns, array has {n_features}')
+    return rows
+
+
+def near_constant_columns(std, units=None):
+    """Compare scales only within the same physical unit; a review flag only."""
+    units = np.asarray(units if units is not None else ['unspecified']*len(std))
+    if len(units) != len(std):
+        raise ValueError('Units and columns disagree')
+    flagged = np.zeros(len(std),bool)
+    for unit in np.unique(units):
+        mask = units == unit
+        positive = std[mask & (std > 0)]
+        reference = float(np.median(positive)) if len(positive) else 0.
+        flagged[mask] = std[mask] <= reference*1e-8
+    return flagged
+
+
+def describe_features(x, contract):
+    """Descriptive thresholds flag review candidates, never reject observations."""
+    x = np.asarray(x, float)
+    if x.ndim != 2 or len(contract) != x.shape[1] or not len(x):
+        raise ValueError('Nonempty trials x features array and matching contract required')
+    if not np.isfinite(x).all():
+        raise ValueError(f'Feature array contains {int((~np.isfinite(x)).sum())} nonfinite values')
+    q = np.quantile(x, [0,.01,.25,.5,.75,.99,1], axis=0)
+    std = x.std(axis=0)
+    near = near_constant_columns(std,[entry['unit'] for entry in contract])
+    iqr = q[4]-q[2]
+    rows = []
+    for j, entry in enumerate(contract):
+        rows.append(dict(column=j, **entry, mean=float(x[:,j].mean()), std=float(std[j]),
+            minimum=float(q[0,j]), p01=float(q[1,j]), q25=float(q[2,j]), median=float(q[3,j]),
+            q75=float(q[4,j]), p99=float(q[5,j]), maximum=float(q[6,j]),
+            constant=bool(std[j] == 0), near_constant=bool(near[j]),
+            near_constant_relative_tolerance=1e-8,
+            fraction_outside_3iqr=(float(np.mean((x[:,j] < q[2,j]-3*iqr[j]) |
+                                                   (x[:,j] > q[4,j]+3*iqr[j])))
+                                   if iqr[j] > 0 else np.nan)))
+    return pd.DataFrame(rows)
+
+
+def covariance_spectrum(covariance):
+    """Numerical rank/condition and entropy effective rank; no universal pass cutoff."""
+    eigenvalues = np.linalg.eigvalsh((covariance+covariance.T)/2)
+    top = max(float(eigenvalues[-1]), 0.)
+    tolerance = np.finfo(float).eps*len(eigenvalues)*top
+    rank = int((eigenvalues > tolerance).sum())
+    positive = np.maximum(eigenvalues, 0.)
+    total = positive.sum()
+    weights = positive[positive > 0]/total if total > 0 else np.array([])
+    effective = float(np.exp(-np.sum(weights*np.log(weights)))) if len(weights) else 0.
+    condition = float(top/eigenvalues[0]) if rank == len(eigenvalues) else np.inf
+    return dict(rank=rank, rank_relative_1e8=int((eigenvalues > top*1e-8).sum()),
+                condition=condition, effective_rank=effective,
+                minimum_eigenvalue=float(eigenvalues[0]), maximum_eigenvalue=top), eigenvalues
+
+
+def class_covariances(z, y, classes, priors):
+    """Reproduce sklearn LDA 'auto': within-class scaling, LW, then rescaling."""
+    empirical = np.zeros((z.shape[1],z.shape[1]))
+    regularized = empirical.copy()
+    shrinkages = []
+    for code, prior in zip(classes,priors):
+        cell = z[y == code]
+        if len(cell) < 2:
+            raise ValueError('At least two training observations required per class')
+        empirical += prior*empirical_covariance(cell)
+        inner = StandardScaler().fit(cell)
+        cov, alpha = ledoit_wolf(inner.transform(cell))
+        regularized += prior*(inner.scale_[:,None]*cov*inner.scale_[None,:])
+        shrinkages.append(dict(trigger=int(code), n_train=len(cell), shrinkage=float(alpha)))
+    return empirical, regularized, shrinkages
+
+
+def pair_bootstrap_indices(meta, rng):
+    """Resample whole pairs within each subject/comparison stratum."""
+    indices = []
+    for _, group in meta.reset_index(drop=True).groupby(['subject','group'], sort=False):
+        pairs = []
+        for _, pair in group.groupby('pair_id',sort=False):
+            if len(pair) != 2 or set(pair.position) != {1,2}:
+                raise ValueError('Bootstrap requires complete first/second pairs')
+            pairs.append(pair.index.to_numpy())
+        for chosen in rng.integers(len(pairs), size=len(pairs)):
+            indices.extend(pairs[chosen])
+    return np.asarray(indices,int)
+
+
+def audit_training_fold(x_train, x_test, y_train, meta_train, repeats=10, seed=42, units=None):
+    """Fit the actual baseline scaler/LDA using training observations only.
+
+    Bootstrap stability is conditional on the fixed outer training scaler.
+    No test labels, predictions, scores, feature selection or tuning are used.
+    """
+    if not np.isfinite(x_train).all() or not np.isfinite(x_test).all():
+        raise ValueError('Nonfinite training/test features')
+    estimator = model().fit(x_train,y_train)
+    scaler, lda = estimator.steps[0][1], estimator.steps[1][1]
+    z, heldout = scaler.transform(x_train), scaler.transform(x_test)
+    empirical, reconstructed, shrinkages = class_covariances(z,y_train,lda.classes_,lda.priors_)
+    np.testing.assert_allclose(reconstructed,lda.covariance_,rtol=1e-10,atol=1e-12)
+    constant = scaler.var_ == 0
+    spectrum_emp, eigen_emp = covariance_spectrum(empirical)
+    spectrum_reg, eigen_reg = covariance_spectrum(lda.covariance_)
+    std = x_train.std(axis=0)
+    varying = np.std(z,axis=0) > 0
+    correlation = np.corrcoef(z[:,varying],rowvar=False) if varying.sum() > 1 else np.empty((0,0))
+    off = np.abs(correlation[np.triu_indices(len(correlation),1)])
+    largest_row, largest_column = np.unravel_index(np.abs(heldout).argmax(),heldout.shape)
+    summary = dict(n_train=len(x_train),n_test=len(x_test),n_features=x_train.shape[1],
+        n_scaler_fit_samples=int(scaler.n_samples_seen_),n_constant=int(constant.sum()),
+        n_near_constant=int(near_constant_columns(std,units).sum()),
+        train_mean_fit_max_error=float(np.abs(scaler.mean_-x_train.mean(axis=0)).max()),
+        train_z_mean_max_abs=float(np.abs(z.mean(axis=0)).max()),
+        train_z_std_max_error=float(np.abs(z[:,~constant].std(axis=0)-1).max()) if (~constant).any() else 0.,
+        heldout_z_max_abs=float(np.abs(heldout).max()),
+        heldout_max_row=int(largest_row),heldout_max_column=int(largest_column),
+        heldout_fraction_abs_z_gt5=float((np.abs(heldout)>5).mean()),
+        median_abs_feature_correlation=float(np.median(off)) if len(off) else np.nan,
+        fraction_abs_feature_correlation_gt09=float((off > .9).mean()) if len(off) else np.nan,
+        covariance_reconstruction_max_error=float(np.abs(reconstructed-lda.covariance_).max()),
+        **{'empirical_'+k:v for k,v in spectrum_emp.items()},
+        **{'regularized_'+k:v for k,v in spectrum_reg.items()})
+    rng = np.random.default_rng(seed)
+    boot = []
+    for repeat in range(repeats):
+        indices = pair_bootstrap_indices(meta_train,rng)
+        a,b,_ = class_covariances(z[indices],y_train[indices],lda.classes_,lda.priors_)
+        for name, candidate, reference in [('empirical',a,empirical),('regularized',b,lda.covariance_)]:
+            denominator = np.linalg.norm(reference,'fro')
+            boot.append(dict(repeat=repeat,estimate=name,
+                relative_frobenius_change=float(np.linalg.norm(candidate-reference,'fro')/denominator)
+                                          if denominator > 0 else np.nan))
+    return summary, pd.DataFrame(shrinkages), pd.DataFrame(boot), (eigen_emp,eigen_reg)

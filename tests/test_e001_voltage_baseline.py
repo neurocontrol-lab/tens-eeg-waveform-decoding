@@ -2,9 +2,9 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from experiments.task4_baseline.events import align_events, trigger_runs
-from experiments.task4_baseline.features import CHANNELS, build_features
-from experiments.task4_baseline.evaluate import make_splits, permute_pairs, predict_oof, scores
+from experiments.waveform_decoding.e001_voltage_baseline.events import align_events, trigger_runs
+from experiments.waveform_decoding.e001_voltage_baseline.features import CHANNELS, build_features
+from experiments.waveform_decoding.e001_voltage_baseline.evaluate import make_splits, permute_pairs, predict_oof, scores
 
 
 def behavior(pairs, choices=None):

@@ -1,0 +1,93 @@
+"""Fixed support, linear coefficient reconstruction and exact-sign statistics."""
+import itertools
+import numpy as np
+from experiments.task4_time_resolved.analysis import specifications, regression_operator
+from experiments.task4_multiscale.analysis import transform
+
+FAMILIES = ('waveform','position','interaction')
+BRANCHES = ('minimal','cleaned')
+PERIODS = ('pre','post')
+SCALES = (2.5,5.,10.,20.,40.)
+
+
+def supports(times,sfreq):
+    """Post [max(50,11+4sigma),480) ms, matched pre [-480,-start) ms.
+
+    Integer samples preserve the half-open endpoints. Pre and post have the
+    same duration/absolute continuous-time limits, not a fixed translation.
+    """
+    if sfreq != 1000:
+        raise ValueError('Frozen follow-up requires the original 1-kHz sampling')
+    indices = np.rint(np.asarray(times)*sfreq).astype(int)
+    if not np.allclose(indices/sfreq,times,atol=1e-12):
+        raise ValueError('Unexpected time grid')
+    result = {}
+    for sigma in SCALES:
+        radius = int(4*sigma+.5)
+        start = max(50,11+radius)
+        for period,(lo,hi) in [('post',(start,480)),('pre',(-480,-start))]:
+            mask = (indices >= lo) & (indices < hi)
+            if mask.sum()!=hi-lo or lo-radius < indices[0] or hi-1+radius > indices[-1]:
+                raise ValueError('Missing real temporal support')
+            if period=='post' and lo-radius <= 10:
+                raise ValueError('Post kernel enters onset blank')
+            if period=='pre' and hi-1+radius >= -2:
+                raise ValueError('Pre kernel enters onset blank')
+            result[(period,sigma)] = mask
+    return result
+
+
+def coefficient_traces(epochs,meta):
+    """Nine OLS effect traces before a fixed linear temporal operator.
+
+    OLS and Gaussian differentiation commute. This avoids filtering every
+    trial repeatedly; equivalence is tested and checked against saved maps.
+    """
+    operator,slices,audit = regression_operator(meta)
+    joint = np.concatenate([operator[slices[f]] for f in FAMILIES])
+    counts = [4,1,4]
+    traces = (joint@epochs.reshape(len(epochs),-1)).reshape(9,*epochs.shape[1:])
+    return traces,dict(zip(FAMILIES,np.split(np.arange(9),np.cumsum(counts)[:-1]))),audit
+
+
+def build_layout(times,sfreq,channels):
+    masks = supports(times,sfreq)
+    blocks,fields,offset = [],[],0
+    for b,branch in enumerate(BRANCHES):
+        for p,period in enumerate(PERIODS):
+            for s,sigma in enumerate(SCALES):
+                selected = times[masks[(period,sigma)]]
+                length = len(selected)*len(channels)
+                blocks.append(dict(branch=branch,period=period,sigma_ms=sigma,
+                    start=offset,end=offset+length,times_s=selected.tolist()))
+                fields.append(dict(branch=np.full(length,b,np.int8),period=np.full(length,p,np.int8),
+                    scale=np.full(length,s,np.int8),time_s=np.repeat(selected,len(channels)),
+                    channel=np.tile(np.arange(len(channels),dtype=np.int16),len(selected))))
+                offset += length
+    return blocks,{key:np.concatenate([f[key] for f in fields]) for key in fields[0]}
+
+
+def all_signs(n):
+    if not 3<=n<=16:
+        raise ValueError('Exact signs require 3–16 independent participant vectors')
+    return np.asarray(list(itertools.product((-1.,1.),repeat=n)))
+
+
+def sign_statistics(coefs,signs):
+    """Same studentized omnibus as the preserved time-resolved implementation."""
+    n,k,m = coefs.shape
+    means = (signs@coefs.reshape(n,-1)).reshape(len(signs),k,m)/n
+    ss = np.sum(coefs*coefs,axis=0)
+    variance = (ss[None]-n*means*means)/(n*(n-1))
+    floor = np.finfo(float).eps*np.maximum(1.,means*means)
+    return np.sum(means*means/np.maximum(variance,floor),axis=1)
+
+
+def pulse(times,centres,width=.015):
+    """15-ms Gaussian reference pulse, truncated at four widths (unit peak)."""
+    distance = np.asarray(times)[None,:]-np.asarray(centres)[:,None]
+    return np.where(np.abs(distance)<=4*width+1e-12,np.exp(-.5*(distance/width)**2),0.)
+
+
+WAVE_CODES = np.array([-1.,-.5,0.,.5,1.])
+SPATIAL = {'C3':1.,'CP1':.5,'C4':-1.,'CP2':-.5}

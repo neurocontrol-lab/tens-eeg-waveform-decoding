@@ -1,0 +1,130 @@
+"""New participant intervals and earlier, kernel-guarded response effects."""
+import argparse
+import importlib.metadata
+import json
+from pathlib import Path
+import time
+import numpy as np
+import pandas as pd
+from threadpoolctl import threadpool_limits
+from experiments.task4_preprocessing_comparison.__main__ import load_inputs
+from experiments.task4_preprocessing_comparison.analysis import source_digest
+from experiments.task4_response_diagnostics.__main__ import sha,write_json
+from experiments.task4_multiscale.analysis import transform
+from .core import FAMILIES,BRANCHES,SCALES,PERIODS,supports,coefficient_traces,build_layout
+from .uncertainty import summarize
+
+
+def prepare(subject,args,config):
+    out = args.output/f'sub-{subject}'
+    out.mkdir()
+    print(f'Subject {subject}: reconstruct matched recorded EEG; no ICA refit',flush=True)
+    branches,times,channels,meta,audit = load_inputs(subject,args,config)
+    masks = supports(times,audit['sfreq'])
+    blocks,locations = build_layout(times,audit['sfreq'],channels)
+    results = {family:[] for family in FAMILIES}
+    old = np.load(args.late/f'sub-{subject}/effects.npz')
+    previous_meta = pd.read_csv(args.comparison/f'sub-{subject}/events.csv')
+    pd.testing.assert_frame_equal(meta[['sample','trigger','pair_id','position']],
+        previous_meta[['sample','trigger','pair_id','position']],check_dtype=False)
+    old_audit = json.loads((args.comparison/f'sub-{subject}/audit.json').read_text())
+    for key in ('source_sha256','csv_sha256','saved_ica_sha256','n_events'):
+        if audit[key]!=old_audit[key]:
+            raise ValueError(f'Prior input/cohort changed: {key}')
+    error = 0.
+    for b,branch in enumerate(BRANCHES):
+        beta,indices,design = coefficient_traces(branches[branch][0],meta)
+        transformed = [transform(beta,audit['sfreq'],dict(operator='gaussian_derivative',sigma_ms=s)) for s in SCALES]
+        for p,period in enumerate(PERIODS):
+            late_times = old[period+'_times']
+            late_mask = np.isin(np.rint(times*1000).astype(int),np.rint(late_times*1000).astype(int))
+            for s,sigma in enumerate(SCALES):
+                values = transformed[s]
+                for family in FAMILIES:
+                    trace = values[indices[family]].transpose(0,2,1)
+                    expected = old[family][:,b,p,s]
+                    actual = trace[:,late_mask]
+                    np.testing.assert_allclose(actual,expected,rtol=1e-8,atol=1e-8)
+                    error = max(error,float(np.max(np.abs(actual-expected))))
+                    results[family].append(trace[:,masks[(period,sigma)]].reshape(len(indices[family]),-1))
+        del transformed,beta
+    old.close()
+    np.savez_compressed(out/'effects.npz',**{f:np.concatenate(v,axis=1) for f,v in results.items()})
+    meta.to_csv(out/'events.csv',index=False)
+    audit.update(design=design,late_coefficient_max_error=error,
+        old_coefficients_sha256=sha(args.late/f'sub-{subject}/effects.npz'))
+    write_json(out/'audit.json',audit)
+    if not (args.output/'layout.json').exists():
+        write_json(args.output/'layout.json',dict(channels=channels,blocks=blocks,n_locations=len(locations['branch'])))
+        np.savez_compressed(args.output/'locations.npz',**locations)
+    elif json.loads((args.output/'layout.json').read_text())!=dict(channels=channels,blocks=blocks,n_locations=len(locations['branch'])):
+        raise ValueError('Participants have different tested locations')
+    print(f'  {len(meta)} events, late coefficient reproduction error {error:.3g}',flush=True)
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--subjects',default=','.join(map(str,range(3,13))))
+    parser.add_argument('--prior',type=Path,default=Path('output/task4_multiscale_20261023'))
+    parser.add_argument('--comparison',type=Path,default=Path('output/task4_preprocessing_comparison_final_20261023'))
+    parser.add_argument('--late',type=Path,default=Path('output/task4_time_resolved_20261023'))
+    parser.add_argument('--ica-cache',type=Path,default=Path('output/task4_response_cache'))
+    parser.add_argument('--data-dir',type=Path,default=Path('EEGData'))
+    parser.add_argument('--master-csv',type=Path,default=Path('EEG_Codes_Export/02_SourceLocalization_Task4/Master_Data_ToSub12 (1).csv'))
+    parser.add_argument('--output',type=Path,default=Path('output/task4_response_followup_20261023'))
+    args = parser.parse_args()
+    args.subjects = [int(s) for s in args.subjects.split(',')]
+    if len(args.subjects)<3 or len(set(args.subjects))!=len(args.subjects) or not set(args.subjects)<=set(range(3,13)):
+        parser.error('Choose at least three unique subjects 3–12')
+    if args.output.exists():
+        parser.error('Use a fresh output directory')
+    for source in (args.prior,args.comparison,args.late):
+        status = json.loads((source/'status.json').read_text())
+        if status['errors'] or not set(args.subjects)<=set(status['completed']):
+            parser.error(f'Incomplete source run: {source}')
+    prior_config = json.loads((args.prior/'config.json').read_text())
+    comparison_config = json.loads((args.comparison/'config.json').read_text())
+    numerical = [Path(p) for p in ('experiments/task4_preprocessing_comparison/__main__.py',
+        'experiments/task4_preprocessing_comparison/analysis.py','experiments/task4_multiscale/analysis.py',
+        'experiments/task4_response_diagnostics/analysis.py','experiments/task4_response_diagnostics/preprocess.py',
+        'experiments/task4_baseline/events.py','experiments/task4_time_resolved/analysis.py')]
+    for p in numerical[:2]:
+        if sha(p)!=source_digest(comparison_config['implementation'],p.as_posix()):
+            parser.error(f'Prior reconstruction source changed: {p}')
+    sources = list(Path(__file__).parent.glob('*.py'))+numerical
+    config = dict(subjects=args.subjects,prior_config=prior_config,scales_ms=SCALES,
+        post_start_ms=[50,50,51,91,171],post_end_ms=480,
+        pre_intervals='[-480,-post_start) ms, matching each post duration',
+        interpretation='Exploratory extension after earlier null results; fixed kernel guards, not peak-selected',
+        uncertainty='10000 participant resamples of participant medians; seed 20261023; descriptive pointwise intervals',
+        correction='All exact participant joint-vector signs; max across both branches/periods/scales/valid times/62 electrodes, times three effect families',
+        dependencies={k:importlib.metadata.version(k) for k in prior_config['dependencies']},
+        implementation={p.as_posix():sha(p) for p in sources},
+        input_configs={str(p):sha(p/'config.json') for p in (args.prior,args.comparison,args.late)},
+        ica_refitted=False,classifier_fitted=False)
+    args.output.mkdir(parents=True)
+    write_json(args.output/'config.json',config)
+    completed = []
+    started = time.perf_counter()
+    try:
+        with threadpool_limits(limits=2):
+            summarize(args)
+            for subject in args.subjects:
+                prepare(subject,args,config)
+                completed.append(subject)
+                write_json(args.output/'status.json',dict(completed=completed,errors={},complete=False))
+            from .report import render
+            render(args.output)
+        for path,digest in config['implementation'].items():
+            if sha(Path(path))!=digest:
+                raise ValueError(f'Source changed during run: {path}')
+        write_json(args.output/'status.json',dict(completed=completed,errors={},complete=True,
+            seconds=time.perf_counter()-started))
+    except Exception as exc:
+        write_json(args.output/'status.json',dict(completed=completed,errors=dict(run=f'{type(exc).__name__}: {exc}'),complete=False))
+        raise
+    print(f'Results: {args.output.resolve()}',flush=True)
+
+
+if __name__=='__main__':
+    main()

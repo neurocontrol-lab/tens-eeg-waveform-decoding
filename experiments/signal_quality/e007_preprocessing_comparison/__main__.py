@@ -1,0 +1,200 @@
+"""Run matched minimal/supplied EEG processing without refitting ICA."""
+import argparse
+import importlib.metadata
+import json
+from pathlib import Path
+from experiments.provenance import source_matches
+import traceback
+import numpy as np
+import pandas as pd
+from threadpoolctl import threadpool_limits
+from experiments.waveform_decoding.e001_voltage_baseline.events import load_recording,trigger_runs,align_events,read_behavior
+from experiments.response_characterization.e002_electrode_position_slope.__main__ import sha,write_json
+from experiments.response_characterization.e002_electrode_position_slope.preprocess import SETTINGS,interpolate_stimuli
+from experiments.response_characterization.e006_multiscale_responses.analysis import (transform,window_features,validate_support,
+    split_weights,condition_weights)
+from .analysis import (epoch_input,pre_values,interval_repeatability,signal_health,
+                       INTERVALS,BASELINES,PLOT_CHANNELS,BRANCHES,source_digest,choose_verified_fit)
+
+
+def load_inputs(subject,args,config):
+    import mne
+    mne.set_log_level('WARNING')
+    old = args.prior/f'sub-{subject}'
+    provenance = json.loads((old/'reconstruction.json').read_text())
+    if provenance['preprocessing'] != SETTINGS:
+        raise ValueError('Prior preprocessing settings differ')
+    for name,version in provenance['dependencies'].items():
+        if importlib.metadata.version(name) != version:
+            raise ValueError(f'Dependency changed: {name}')
+    for filename in ('experiments/waveform_decoding/e001_voltage_baseline/events.py',
+                     'experiments/response_characterization/e002_electrode_position_slope/analysis.py',
+                     'experiments/response_characterization/e002_electrode_position_slope/preprocess.py',
+                     'experiments/response_characterization/e006_multiscale_responses/analysis.py'):
+        if not source_matches(filename, source_digest(config['prior_config']['implementation'],filename)):
+            raise ValueError(f'Prior numerical source changed: {filename}')
+    source = args.data_dir/f'Subject{subject}_data/EEGDATA_SUB{subject}-T4.xdf'
+    if sha(source) != provenance['source_sha256'] or sha(args.master_csv) != provenance['csv_sha256']:
+        raise ValueError('Recording or CSV hash differs')
+    fits = [p/'cleaning-ica.fif' for p in args.ica_cache.glob(f'sub-{subject}-*')
+            if (p/'complete.json').exists() and (p/'cleaning-ica.fif').exists()
+            and sha(p/'cleaning-ica.fif') == provenance['saved_ica_sha256']]
+    fit = choose_verified_fit(fits,Path(provenance['saved_ica_file']).parent.name)
+    data,names,trigger,timestamps,sfreq = load_recording(source)
+    events = align_events(trigger_runs(trigger,sfreq),read_behavior(args.master_csv,subject),subject,timestamps)
+    del trigger
+    old_events = pd.read_csv(old/'events.csv')
+    for field in ('sample','trigger','pair_id','position','response_valid'):
+        if not np.array_equal(events[field].to_numpy(),old_events[field].to_numpy()):
+            raise ValueError(f'Event alignment changed: {field}')
+    meta = events[old_events.multiscale_eligible.to_numpy()].reset_index(drop=True)
+    # Extract the minimal branch before the supplied filters modify the continuous data.
+    minimal,times,delta_minimal = epoch_input(data,timestamps,meta,sfreq,average_reference=True)
+    raw = mne.io.RawArray(data,mne.create_info(names,sfreq,'eeg'),verbose=False)
+    raw.set_montage('standard_1020',on_missing='raise',verbose=False)
+    raw.filter(.5,None,method='iir',iir_params=dict(order=94,ftype='cheby2',rs=40,output='sos'),
+               phase='zero',verbose=False)
+    raw.notch_filter(np.arange(60.,sfreq/2,60.),verbose=False)
+    raw.set_eeg_reference('average',projection=False,verbose=False)
+    ica = mne.preprocessing.read_ica(fit,verbose=False)
+    if ica.ch_names != names:
+        raise ValueError('ICA channels changed')
+    ica.apply(raw,verbose=False)
+    interpolate_stimuli(raw._data,events['sample'].to_numpy(),sfreq)
+    raw.filter(None,190.,verbose=False)
+    cleaned,clean_times,delta_cleaned = epoch_input(raw._data,timestamps,meta,sfreq)
+    np.testing.assert_array_equal(times,clean_times)
+    audit = dict(source_sha256=provenance['source_sha256'],csv_sha256=provenance['csv_sha256'],
+        saved_ica_sha256=sha(fit),saved_ica_file=str(fit.resolve()),ica_cache_matches=len(fits),
+        prior_summary_sha256=sha(old/'summaries.npz'),
+        prior_repeats_sha256=sha(old/'repeatability.csv'),
+        n_aligned=len(events),n_events=len(meta),sfreq=sfreq,ica_refitted=False,
+        cohort_source='Frozen multiscale_eligible flags; no branch-specific exclusions',
+        n_padding_exclusions=0)
+    return dict(minimal=(minimal,delta_minimal),cleaned=(cleaned,delta_cleaned)),times,names,meta,audit
+
+
+def prepare(subject,args,config):
+    out = args.output/f'sub-{subject}'
+    out.mkdir()
+    print(f'Subject {subject}: frozen cohort, raw-reference input and verified ICA reconstruction',flush=True)
+    branches,times,channels,meta,audit = load_inputs(subject,args,config)
+    sfreq = audit['sfreq']
+    specs = config['representations']
+    validate_support(times,sfreq,specs)
+    weights,support = split_weights(meta)
+    audit['repeatability_support'] = support
+    means_w = condition_weights(meta).reshape(10,len(meta))
+    meta.to_csv(out/'events.csv',index=False)
+    prior_repeats = pd.read_csv(args.prior/f'sub-{subject}/repeatability.csv')
+    with np.load(args.prior/f'sub-{subject}/summaries.npz') as previous:
+        if previous['channels'].tolist() != channels:
+            raise ValueError('Prior channel order differs')
+        expected_features = previous['features']
+    rows,electrodes,health = [],[],[]
+    evoked,features = {},{}
+    plot_indices = [channels.index(c) for c in PLOT_CHANNELS]
+    max_feature_error,max_repeat_error = 0.,0.
+    for branch in BRANCHES:
+        epochs,baseline_difference = branches[branch]
+        traces,feature_rows = [],[]
+        for period in INTERVALS:
+            voltage = pre_values(epochs,baseline_difference,dict(operator='voltage')) if period == 'pre' else epochs
+            h = signal_health(voltage,times,sfreq,period)
+            h['event_index'] = meta.event_index.to_numpy()
+            h['pair_id'] = meta.pair_id.to_numpy()
+            h['position'] = meta.position.to_numpy()
+            h['branch'],h['period'] = branch,period
+            health.append(h)
+        for s,spec in enumerate(specs):
+            print(f'  {branch}: {spec["name"]}',flush=True)
+            values = transform(epochs,sfreq,spec)
+            f = window_features(values,times)
+            feature_rows.append(f)
+            if branch == 'cleaned':
+                expected = expected_features[:,2*s:2*s+2]
+                np.testing.assert_allclose(f,expected,rtol=2e-7,atol=2e-5)
+                max_feature_error = max(max_feature_error,float(np.max(np.abs(f-expected))))
+            period_traces = []
+            for period,(lo,hi) in INTERVALS.items():
+                v = pre_values(values,baseline_difference,spec) if period == 'pre' else values
+                r,e = interval_repeatability(v,times,weights,channels,spec['name'],period,sfreq)
+                if branch == 'cleaned' and period == 'post':
+                    expected = prior_repeats[prior_repeats.representation == spec['name']].sort_values(['repeat','position'])
+                    actual = r.sort_values(['repeat','position'])
+                    columns = ['common_response_r','waveform_deviation_r']
+                    np.testing.assert_allclose(actual[columns],expected[columns],rtol=1e-8,atol=1e-9)
+                    max_repeat_error = max(max_repeat_error,float(np.max(np.abs(actual[columns].to_numpy()-expected[columns].to_numpy()))))
+                r['branch'],r['period'] = branch,period
+                e['branch'],e['period'] = branch,period
+                rows.append(r)
+                electrodes.append(e)
+                mask = (times >= lo) & (times < hi)
+                display = v[:,plot_indices][:,:,mask]
+                period_traces.append((means_w@display.reshape(len(meta),-1)).reshape(
+                    5,2,len(plot_indices),-1).astype(np.float32))
+            traces.append(period_traces)
+        evoked[branch] = np.asarray(traces)
+        features[branch] = np.concatenate(feature_rows,axis=1)
+    np.savez_compressed(out/'summaries.npz',channels=np.asarray(channels),
+        plot_channels=np.asarray(PLOT_CHANNELS),relative_ms=np.arange(round(.4*sfreq))*1000/sfreq,
+        **{f'{b}_evoked':evoked[b] for b in BRANCHES},
+        **{f'{b}_post_features':features[b][:,:,1:,:] for b in BRANCHES})
+    pd.concat(rows).to_csv(out/'repeatability.csv',index=False)
+    pd.concat(electrodes).to_csv(out/'electrode_repeatability.csv',index=False)
+    pd.concat(health).to_csv(out/'signal_health.csv',index=False)
+    audit.update(prior_feature_max_error=max_feature_error,prior_post_repeatability_max_error=max_repeat_error)
+    write_json(out/'audit.json',audit)
+    write_json(out/'complete.json',dict(subject=subject))
+    print(f'  Completed {subject}: {len(meta)} matched events; prior r error {max_repeat_error:.3g}',flush=True)
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--subjects',default=','.join(map(str,range(3,13))))
+    parser.add_argument('--prior',type=Path,default=Path('output/task4_multiscale_20261023'))
+    parser.add_argument('--ica-cache',type=Path,default=Path('output/task4_response_cache'))
+    parser.add_argument('--data-dir',type=Path,default=Path('EEGData'))
+    parser.add_argument('--master-csv',type=Path,default=Path('EEG_Codes_Export/02_SourceLocalization_Task4/Master_Data_ToSub12 (1).csv'))
+    parser.add_argument('--output',type=Path,default=Path('output/task4_preprocessing_comparison_20261023'))
+    args = parser.parse_args()
+    subjects = [int(s) for s in args.subjects.split(',')]
+    if not subjects or len(subjects) != len(set(subjects)) or not set(subjects) <= set(range(3,13)):
+        parser.error('Choose unique subjects 3-12')
+    if args.output.exists():
+        parser.error('Use a fresh output directory')
+    prior_status = json.loads((args.prior/'status.json').read_text())
+    if prior_status['errors'] or not set(subjects) <= set(prior_status['completed']):
+        parser.error('Prior multiscale participants must be complete without errors')
+    prior_config = json.loads((args.prior/'config.json').read_text())
+    args.output.mkdir(parents=True)
+    sources = list(Path(__file__).parent.glob('*.py'))+[Path(p) for p in (
+        'experiments/response_characterization/e006_multiscale_responses/analysis.py','experiments/waveform_decoding/e001_voltage_baseline/events.py',
+        'experiments/response_characterization/e002_electrode_position_slope/preprocess.py','experiments/response_characterization/e002_electrode_position_slope/analysis.py')]
+    config = dict(subjects=subjects,prior_config=prior_config,
+        representations=prior_config['representations'],intervals=INTERVALS,baselines=BASELINES,
+        epoch_support=[-.9,.65],branches=BRANCHES,
+        minimal_processing='Verified recorded EEG units; 62-channel average reference; separate interval baselines; feature operators only',
+        cleaned_processing=SETTINGS,implementation={p.as_posix():sha(p) for p in sources},
+        dependencies=prior_config['dependencies'],classifier_fitted=False,ica_refitted=False)
+    write_json(args.output/'config.json',config)
+    completed,errors = [],{}
+    with threadpool_limits(limits=2):
+        for subject in subjects:
+            try:
+                prepare(subject,args,config)
+                completed.append(subject)
+            except Exception as exc:
+                errors[str(subject)] = f'{type(exc).__name__}: {exc}'
+                print(traceback.format_exc(),flush=True)
+            write_json(args.output/'status.json',dict(completed=completed,errors=errors))
+    from .report import render
+    if completed:
+        render(args.output)
+    if errors:
+        raise SystemExit(1)
+    print(f'Report: {(args.output/"index.html").resolve()}',flush=True)
+
+
+if __name__ == '__main__':
+    main()

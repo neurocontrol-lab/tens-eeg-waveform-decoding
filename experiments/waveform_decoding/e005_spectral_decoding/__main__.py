@@ -1,0 +1,97 @@
+"""Run fixed alpha/beta, voltage and combined features with matched controls."""
+import argparse
+import importlib.metadata
+import json
+from pathlib import Path
+import time
+import numpy as np
+import pandas as pd
+from threadpoolctl import threadpool_limits
+from experiments.waveform_decoding.e004_xdawn_decoding.data import prepare_subject, sha, write_json
+from .core import BANDS, POWER_FLOOR_UV2
+from .evaluate import evaluate_job
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--baseline', type=Path, default=Path('output/task4_baseline'))
+    parser.add_argument('--data-dir', type=Path, default=Path('EEGData'))
+    parser.add_argument('--master-csv', type=Path, default=Path('EEG_Codes_Export/02_SourceLocalization_Task4/Master_Data_ToSub12 (1).csv'))
+    parser.add_argument('--cache-dir', type=Path, default=Path('output/task4_xdawn_epoch_cache'))
+    parser.add_argument('--output', type=Path, default=Path('output/task4_spectral'))
+    parser.add_argument('--subjects', default=','.join(map(str,range(3,13))))
+    parser.add_argument('--permutations', type=int, default=199)
+    parser.add_argument('--audit-resamples', type=int, default=10)
+    parser.add_argument('--seed', type=int, default=42)
+    parser.add_argument('--no-loso', action='store_true')
+    args = parser.parse_args()
+    subjects = [int(value) for value in args.subjects.split(',')]
+    if not subjects or len(subjects)!=len(set(subjects)) or not set(subjects)<=set(range(3,13)):
+        parser.error('Choose unique participants 3-12')
+    if not args.no_loso and subjects!=list(range(3,13)):
+        parser.error('Matched LOSO requires participants 3-12 in order; use --no-loso for subsets')
+    if args.permutations<0 or args.seed<0 or args.audit_resamples<2:
+        parser.error('Invalid permutation count, seed or covariance resample count')
+    if args.output.exists() and any(args.output.iterdir()):
+        parser.error('Choose a fresh output directory')
+    args.output.mkdir(parents=True, exist_ok=True)
+    args.dependencies = {name: importlib.metadata.version(name) for name in
+        ['numpy','pandas','scipy','scikit-learn','pyxdf','mne','matplotlib']}
+    args.evaluate_source = Path('experiments/waveform_decoding/e001_voltage_baseline/evaluate.py')
+    sources = [*Path(__file__).parent.glob('*.py'), args.evaluate_source,
+        Path('experiments/waveform_decoding/e001_voltage_baseline/events.py'), Path('experiments/waveform_decoding/e001_voltage_baseline/features.py'),
+        *[Path(f'experiments/waveform_decoding/e004_xdawn_decoding/{name}.py') for name in ['data','core','report']],
+        *[Path(f'experiments/signal_quality/e003_voltage_feature_audit/{name}.py') for name in ['core','__main__']]]
+    config = dict(subjects=subjects, baseline=str(args.baseline.resolve()), permutations=args.permutations,
+        seed=args.seed, audit_resamples=args.audit_resamples, no_loso=args.no_loso,
+        bands_hz=BANDS, spectral_estimator='Single full-epoch Hann periodogram, constant detrend, one-sided density',
+        integration='Piecewise-linear PSD with interpolated exact band boundaries; trapezoidal integral',
+        units='Input volts; integrated uV^2; 10*log10(power/1 uV^2)', power_floor_uv2=POWER_FLOOR_UV2,
+        zero_padding=False, feature_counts=dict(voltage=126,power=28,combined=154),
+        post_ms=[50,500], pre_ms=[-500,-50], baseline_ms=dict(post=[-250,-50],pre=[-750,-550]),
+        preprocessing='Exact original minimal baseline; fixed scalp average; no added filters, ICA, blanking or exclusions',
+        classification='Original training-only StandardScaler and equal-prior lsqr shrinkage-auto LDA',
+        multiple_testing='Holm across all six LOSO representations/windows; separate Holm family across all within-subject tests',
+        dependencies=args.dependencies, implementation_sha256={str(p):sha(p) for p in sources},
+        baseline_run_config_sha256=sha(args.baseline/'run_config.json'))
+    write_json(args.output/'run_config.json', config)
+    started = time.perf_counter()
+    prepared, reports = [], {}
+    def status(complete=False, errors=None):
+        write_json(args.output/'status.json',dict(prepared=[p['subject'] for p in prepared],
+            completed_jobs=list(reports),complete=complete,seconds=time.perf_counter()-started,errors=errors or {}))
+    try:
+        with threadpool_limits(limits=1):
+            for subject in subjects:
+                prepared.append(prepare_subject(subject,args,args.dependencies))
+                status()
+            write_json(args.output/'epoch_provenance.json',[dict(cache=str(p['cache'].resolve()),**p['info'],
+                provenance=json.loads((p['cache']/'provenance.json').read_text()),
+                cache_sha256={name:sha(p['cache']/name) for name in ['events.csv','post.npy','pre.npy','complete.json']}) for p in prepared])
+            for item in prepared:
+                identity = f'sub-{item["subject"]}'
+                reports[identity] = evaluate_job(identity,'within',item['epochs'],item['meta'],
+                    item['info']['sfreq'],item['info']['samples_per_bin'],args)
+                status()
+            if not args.no_loso:
+                if len({p['info']['sfreq'] for p in prepared})!=1:
+                    raise ValueError('Different sample rates; do not silently pool')
+                epochs = {w:np.concatenate([p['epochs'][w] for p in prepared]) for w in ['post','pre']}
+                meta = pd.concat([p['meta'] for p in prepared],ignore_index=True)
+                reports['loso'] = evaluate_job('loso','loso',epochs,meta,prepared[0]['info']['sfreq'],
+                    prepared[0]['info']['samples_per_bin'],args)
+            for path, digest in config['implementation_sha256'].items():
+                if sha(Path(path))!=digest:
+                    raise ValueError(f'Implementation changed during run: {path}')
+        write_json(args.output/'summary.json',dict(reports=reports))
+        from .report import write_report
+        write_report(args.output)
+        status(complete=True)
+    except Exception as exc:
+        status(errors=dict(run=f'{type(exc).__name__}: {exc}'))
+        raise
+    print(f'Results: {args.output.resolve()}',flush=True)
+
+
+if __name__=='__main__':
+    main()

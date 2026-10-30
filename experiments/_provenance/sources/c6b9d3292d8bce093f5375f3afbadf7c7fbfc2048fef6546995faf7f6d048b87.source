@@ -1,0 +1,73 @@
+"""Label-independent spectral features with explicit physical units/support."""
+import numpy as np
+from scipy.signal import periodogram
+from experiments.task4_baseline.features import CHANNELS
+from experiments.task4_feature_audit.core import feature_contract
+from experiments.task4_xdawn.core import bin_epochs, flatten_bins
+
+BANDS = (("alpha", 8., 13.), ("beta", 13., 30.))
+POWER_FLOOR_UV2 = 1e-20
+
+
+def integrate_band(frequencies, density, low, high):
+    """Integrate piecewise-linear PSD, including interpolated band boundaries.
+
+    This avoids silently rounding cutoffs to the ~2.22-Hz Fourier grid. Shared
+    endpoints have zero measure; alpha/beta integrals do not double count area.
+    """
+    f = np.asarray(frequencies)
+    density = np.asarray(density)
+    if (f.ndim != 1 or len(f) < 2 or density.shape[-1] != len(f)
+            or not np.all(np.diff(f) > 0) or not f[0] <= low < high <= f[-1]):
+        raise ValueError('Invalid frequency grid or band limits')
+    def at(value):
+        right = int(np.searchsorted(f, value, side='right'))
+        right = min(right, len(f)-1)
+        left = right-1
+        weight = (value-f[left])/(f[right]-f[left])
+        return density[..., left]*(1-weight)+density[..., right]*weight
+    inside = (f > low) & (f < high)
+    points = np.r_[low, f[inside], high]
+    values = np.concatenate([at(low)[..., None], density[..., inside], at(high)[..., None]], axis=-1)
+    return np.trapezoid(values, points, axis=-1)
+
+
+def power_features(epochs_volts, sfreq):
+    """One Hann periodogram per epoch/channel; no temporal filtering/padding.
+
+    Input volts, PSD uV^2/Hz, integrated band power uV^2; output dB re 1 uV^2.
+    A constant is removed independently from each epoch/channel before tapering.
+    No labels or other trials enter the transform. The log floor is a numerical
+    guard, recorded and audited, never an outlier rule or exclusion.
+    """
+    x = np.asarray(epochs_volts, float)
+    if x.ndim != 3 or x.shape[1] != len(CHANNELS) or not np.isfinite(x).all():
+        raise ValueError('Finite events x 14 electrodes x samples epochs required')
+    if sfreq <= 60 or x.shape[-1] != round(.45*sfreq):
+        raise ValueError('Expected a full 450-ms epoch and Nyquist above 30 Hz')
+    f, psd = periodogram(x*1e6, fs=sfreq, window='hann', detrend='constant',
+                        scaling='density', nfft=x.shape[-1], axis=-1)
+    linear = np.concatenate([integrate_band(f, psd, low, high) for _, low, high in BANDS], axis=1)
+    if not np.isfinite(linear).all() or (linear < 0).any():
+        raise ValueError('Invalid integrated spectral power')
+    logged = 10*np.log10(np.maximum(linear, POWER_FLOOR_UV2))
+    return logged, linear, dict(n_samples=x.shape[-1], sfreq=float(sfreq),
+        frequency_spacing_hz=float(sfreq/x.shape[-1]),
+        floor_hits=int((linear <= POWER_FLOOR_UV2).sum()))
+
+
+def contracts(window):
+    start, end = (.05, .5) if window == 'post' else (-.5, -.05)
+    if window not in ('post', 'pre'):
+        raise ValueError(window)
+    power = [dict(feature=f'{channel}:{band}:{low:g}-{high:g}Hz',
+        unit='dB_re_1_uV2', channel=channel, band=band, low_hz=low, high_hz=high,
+        start_s=start, end_s=end) for band, low, high in BANDS for channel in CHANNELS]
+    voltage = feature_contract(window, 126)
+    return dict(voltage=voltage, power=power, combined=voltage+power)
+
+
+def representations(epochs, sfreq, width):
+    voltage = flatten_bins(bin_epochs(epochs, width))
+    power, linear, diagnostics = power_features(epochs, sfreq)
+    return dict(voltage=voltage, power=power, combined=np.column_stack([voltage, power])), linear, diagnostics

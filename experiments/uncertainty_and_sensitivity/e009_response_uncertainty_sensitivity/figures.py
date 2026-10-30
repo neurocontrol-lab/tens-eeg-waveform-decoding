@@ -1,0 +1,74 @@
+"""Re-render saved results without interpolation across excluded kernel support."""
+import argparse
+import json
+from pathlib import Path
+import numpy as np
+import pandas as pd
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+from experiments.response_characterization.e002_electrode_position_slope.__main__ import sha,write_json
+from .core import FAMILIES
+from .report import plot_maps,plot_intervals
+
+
+def sensitivity_curves(out):
+    from matplotlib.ticker import NullLocator
+    files=[out/'recovery_summary.csv',out/'config.json']
+    before={str(p):sha(p) for p in files}
+    summary=pd.read_csv(files[0]);config=json.loads(files[1].read_text())
+    fig,axes=plt.subplots(2,2,figsize=(11,7),layout='constrained',sharex=True,sharey=True)
+    ticks=[.25,.5,1,2,4,8]
+    for r,centre in enumerate([100.,300.]):
+        for c,sd in enumerate([0.,10.]):
+            ax=axes[r,c]
+            for branch,label,color in [('minimal','minimal','#4c78a8'),('cleaned','supplied','#e88725')]:
+                data=summary[(summary.centre_ms==centre)&(summary.jitter_sd_ms==sd)&
+                    (summary.branch==branch)&(summary.amplitude_uv>0)]
+                ax.plot(data.amplitude_uv,data.recovery_fraction,'o-',color=color,label=label)
+            ax.set(title=f'Centre {centre:g} ms · participant jitter SD {sd:g} ms',
+                xlabel='Nominal maximum class peak (µV)',ylabel='Conditional recovery fraction',
+                ylim=(-.03,1.03),xscale='log')
+            ax.set_xticks(ticks,[str(t) for t in ticks])
+            ax.xaxis.set_minor_locator(NullLocator())
+            ax.legend()
+    fig.suptitle(f'Recorded-effect sign-background sensitivity · {config["replicates"]} replicates per setting\n'
+        'Frozen processing; same ideal injection in both branches; full corrected waveform family')
+    fig.savefig(out/'recovery_curves.png',dpi=150,bbox_inches='tight',pad_inches=.15);plt.close(fig)
+    assert before=={str(p):sha(p) for p in files}
+    write_json(out/'figure_render_provenance.json',dict(input_sha256=before,
+        source_sha256={str(Path(__file__)):sha(Path(__file__))},
+        fixed_log_ticks=ticks,matplotlib=matplotlib.__version__,inference_recomputed=False))
+
+
+def main():
+    parser=argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('output',type=Path,nargs='?')
+    parser.add_argument('--sensitivity',type=Path)
+    args=parser.parse_args()
+    plt.rcParams['savefig.bbox']='tight'
+    plt.rcParams['savefig.pad_inches']=.15
+    if args.output is None and args.sensitivity is None:
+        parser.error('Provide an observed output directory or --sensitivity output directory')
+    if args.sensitivity is not None:
+        sensitivity_curves(args.sensitivity)
+    if args.output is None:
+        return
+    inputs=[args.output/'group_tests.npz',args.output/'locations.npz',args.output/'multiscale_difference_intervals.csv']
+    before={str(p):sha(p) for p in inputs}
+    plt.rcParams['image.interpolation']='nearest'
+    with np.load(inputs[0]) as data, np.load(inputs[1]) as loc:
+        for family in FAMILIES:
+            plot_maps(data[family+'_p_fwer'],dict(loc),family,args.output)
+    d=pd.read_csv(inputs[2])
+    order=['gauss5','gauss10','gauss20','deriv5','deriv10','deriv20','dog5_10','dog10_20']
+    d['_order']=d.representation.map({name:i for i,name in enumerate(order)})
+    plot_intervals(d.sort_values('_order',ascending=False),args.output)
+    assert before=={str(p):sha(p) for p in inputs}
+    write_json(args.output/'figure_render_provenance.json',dict(
+        input_sha256=before,source_sha256={str(p):sha(p) for p in [Path(__file__),Path(__file__).with_name('report.py')]},
+        matplotlib=matplotlib.__version__,image_interpolation='nearest',savefig_bbox='tight',
+        inference_recomputed=False,numerical_inputs_unchanged=True))
+
+
+if __name__=='__main__':main()

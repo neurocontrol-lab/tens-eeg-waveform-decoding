@@ -1,0 +1,116 @@
+"""Matched fixed folds, spatial refits for every null, and fold-local audits."""
+import json
+import numpy as np
+import pandas as pd
+from experiments.waveform_decoding.e001_voltage_baseline.evaluate import make_splits,predict_oof,permute_pairs,scores
+from experiments.signal_quality.e003_voltage_feature_audit.__main__ import verify_saved_folds
+from experiments.signal_quality.e003_voltage_feature_audit.core import audit_training_fold,describe_features
+from .core import bin_epochs,flatten_bins,predict_xdawn_oof,projected_contract
+from .data import sha,write_json
+
+
+def evaluate_job(identity,mode,epochs,meta,width,args):
+    out = args.output/identity
+    out.mkdir()
+    splits = make_splits(meta,mode)
+    source_predictions = verify_saved_folds(args.baseline,meta,splits,mode)
+    old_predictions = pd.read_csv(source_predictions)
+    source_scores = args.baseline/('loso_scores.json' if mode=='loso' else f'{identity}/scores.json')
+    old = json.loads(source_scores.read_text())
+    old_config = json.loads((args.baseline/'run_config.json').read_text())
+    y = meta.trigger.to_numpy(int)
+    predicted = meta[['subject','event_index','pair_id','group','position','trigger']].copy()
+    predicted['fold'] = -1
+    membership = []
+    for fold,(train,test) in enumerate(splits):
+        predicted.loc[test,'fold'] = fold
+        membership.append(dict(fold=fold,train_events=meta.iloc[train][['subject','event_index']].values.tolist(),
+            test_events=meta.iloc[test][['subject','event_index']].values.tolist()))
+    write_json(out/'fold_membership.json',membership)
+    meta.to_csv(out/'events.csv',index=False)
+    sensor = {window:flatten_bins(bin_epochs(x,width)) for window,x in epochs.items()}
+    report = dict(identity=identity,mode=mode,seed=args.seed,permutations=args.permutations,
+        n_events=len(meta),models={},original_fold_membership_verified=True,
+        source_prediction_sha256=sha(source_predictions),source_scores_sha256=sha(source_scores))
+    audit_rows,distributions,shrinkages,resamples = [],[],[],[]
+    audits = out/'spatial_models'
+    audits.mkdir()
+    for window,x in epochs.items():
+        contract = projected_contract(start=.05 if window=='post' else -.5)
+        def audit(fold,train,test,spatial,classifier,train_features,test_features):
+            row,shrink,boot,_ = audit_training_fold(train_features,test_features,y[train],
+                meta.iloc[train].reset_index(drop=True),repeats=args.audit_resamples,
+                seed=args.seed+fold,units=[entry['unit'] for entry in contract])
+            # The audit refit must reproduce the classifier actually used for prediction.
+            np.testing.assert_allclose(classifier.steps[-1][1].covariance_,
+                _audit_covariance(train_features,y[train]),rtol=1e-10,atol=1e-12)
+            largest = contract[row['heldout_max_column']]
+            event = meta.iloc[test[row['heldout_max_row']]]
+            row.update(window=window,fold=fold,n_spatial_fit_epochs=len(train),
+                heldout_max_feature=largest['feature'],heldout_max_subject=int(event.subject),
+                heldout_max_event_index=int(event.event_index))
+            audit_rows.append(row)
+            for split,values in [('train',train_features),('test',test_features)]:
+                distributions.append(describe_features(values,contract).assign(window=window,fold=fold,split=split))
+            shrinkages.append(shrink.assign(window=window,fold=fold))
+            resamples.append(boot.assign(window=window,fold=fold))
+            np.savez_compressed(audits/f'{window}_fold-{fold}.npz',classes=spatial.classes_,
+                filters=spatial.filters_,patterns=spatial.patterns_,
+                scaler_mean=classifier.steps[0][1].mean_,scaler_scale=classifier.steps[0][1].scale_,
+                lda_covariance=classifier.steps[-1][1].covariance_,
+                lda_coef=classifier.steps[-1][1].coef_,lda_intercept=classifier.steps[-1][1].intercept_)
+        for name in ['sensor','xdawn']:
+            if name=='sensor':
+                p,prob = predict_oof(sensor[window],y,splits)
+                np.testing.assert_array_equal(p,old_predictions[window+'_predicted'])
+                np.testing.assert_allclose(prob,old_predictions[[f'{window}_prob_{code}' for code in range(239,244)]],
+                                           rtol=1e-8,atol=1e-10)
+            else:
+                p,prob = predict_xdawn_oof(x,y,splits,width,on_fold=audit)
+            result = scores(y,p)
+            result.update(position_scores={str(pos):scores(y[meta.position==pos],p[meta.position==pos]) for pos in [1,2]},
+                subject_scores={str(s):scores(y[meta.subject==s],p[meta.subject==s]) for s in meta.subject.unique()})
+            key = f'{name}_{window}'
+            report['models'][key] = result
+            predicted[key+'_predicted'] = p
+            for j,code in enumerate(range(239,244)):
+                predicted[f'{key}_prob_{code}'] = prob[:,j]
+        print(f'{identity} {window}: sensor={report["models"]["sensor_"+window]["balanced_accuracy"]:.3f}, '
+              f'xDAWN={report["models"]["xdawn_"+window]["balanced_accuracy"]:.3f}',flush=True)
+    # Null labels are shared across windows and models, exactly as in the baseline.
+    reusable = (args.seed==old['seed'] and
+        sha(args.evaluate_source)==old_config['implementation_sha256']['evaluate.py'] and
+        all(args.dependencies.get(k)==v for k,v in old_config['dependencies'].items()) and
+        all(len(old['models'][w]['null_balanced_accuracies']) >= args.permutations for w in epochs))
+    null = {name:[] for name in report['models']}
+    rng = np.random.default_rng(args.seed)
+    for permutation in range(args.permutations):
+        py = permute_pairs(y,meta,rng)
+        for window,x in epochs.items():
+            p,_ = predict_xdawn_oof(x,py,splits,width)
+            null[f'xdawn_{window}'].append(scores(py,p)['balanced_accuracy'])
+            reference = (old['models'][window]['null_balanced_accuracies'][permutation] if reusable
+                         else scores(py,predict_oof(sensor[window],py,splits)[0])['balanced_accuracy'])
+            null[f'sensor_{window}'].append(reference)
+        if permutation==0 or (permutation+1)%10==0 or permutation+1==args.permutations:
+            print(f'{identity}: {permutation+1}/{args.permutations} restricted permutations; xDAWN refitted',flush=True)
+    for name,result in report['models'].items():
+        values = null[name]
+        result.update(null_balanced_accuracies=values,
+            conditional_p=(1+sum(v>=result['balanced_accuracy'] for v in values))/(1+len(values)) if values else None)
+    report.update(sensor_null_reused_from_original=reusable,
+        n_observed_xdawn_fits=len(epochs)*len(splits),
+        n_permutation_xdawn_fits=args.permutations*len(epochs)*len(splits))
+    predicted.to_csv(out/'predictions.csv',index=False)
+    pd.DataFrame(null).to_csv(out/'null_balanced_accuracy.csv',index=False)
+    pd.DataFrame(audit_rows).to_csv(out/'projected_fold_audit.csv',index=False)
+    pd.concat(distributions,ignore_index=True).to_csv(out/'projected_distributions.csv',index=False)
+    pd.concat(shrinkages,ignore_index=True).to_csv(out/'projected_class_shrinkage.csv',index=False)
+    pd.concat(resamples,ignore_index=True).to_csv(out/'projected_covariance_resamples.csv',index=False)
+    write_json(out/'scores.json',report)
+    return report
+
+
+def _audit_covariance(x,y):
+    from experiments.waveform_decoding.e001_voltage_baseline.evaluate import model
+    return model().fit(x,y).steps[-1][1].covariance_

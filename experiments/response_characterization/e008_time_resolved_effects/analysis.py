@@ -1,0 +1,95 @@
+"""Fixed scale/interval definitions and joint participant sign-flip inference."""
+import itertools
+import numpy as np
+from experiments.response_characterization.e002_electrode_position_slope.analysis import effect_design, t_squared
+from experiments.response_characterization.e006_multiscale_responses.analysis import transform
+
+SCALES_MS = (2.5, 5., 10., 20., 40.)
+INTERVALS = {'pre': (-.48, -.18), 'post': (.18, .48)}
+BRANCHES = ('minimal', 'cleaned')
+FAMILIES = ('waveform', 'position', 'interaction')
+TRUNCATE = 4.
+
+
+def specifications():
+    return [dict(name=f'deriv{s:g}', operator='gaussian_derivative', sigma_ms=s,
+                 unit='µV/s') for s in SCALES_MS]
+
+
+def interval_masks(times, sfreq):
+    """Require actual padding and keep every kernel clear of the onset blank."""
+    times = np.asarray(times)
+    radius = round(TRUNCATE*max(SCALES_MS)*sfreq/1000)/sfreq
+    masks = {}
+    for period, (lo, hi) in INTERVALS.items():
+        mask = (times >= lo) & (times < hi)
+        if mask.sum() != round((hi-lo)*sfreq):
+            raise ValueError('Unequal or missing analysis samples')
+        if lo-radius < times[0]-1e-10 or hi+radius > times[-1]+1e-10:
+            raise ValueError('Insufficient real padding for 40-ms scale')
+        if period == 'pre' and hi+radius >= -.002:
+            raise ValueError('Pre kernel reaches stimulus blank')
+        if period == 'post' and lo-radius <= .010:
+            raise ValueError('Post kernel reaches stimulus blank')
+        masks[period] = mask
+    return masks
+
+
+def regression_operator(meta):
+    design, slices = effect_design(meta)
+    rank = np.linalg.matrix_rank(design)
+    if rank != design.shape[1] or len(meta) <= rank:
+        raise ValueError('Context-adjusted effects are not identifiable')
+    return np.linalg.pinv(design), slices, dict(
+        rank=int(rank), columns=design.shape[1], n_events=len(meta),
+        condition_number=float(np.linalg.cond(design)))
+
+
+def fit_trace(values, operator, slices):
+    """OLS coefficients: contrast × time × channel, preserving all samples."""
+    if values.ndim != 3 or not np.isfinite(values).all():
+        raise ValueError('Expected finite trial × channel × time data')
+    beta = (operator @ values.reshape(len(values), -1)).reshape(-1, *values.shape[1:])
+    return {key: beta[sl].transpose(0, 2, 1) for key, sl in slices.items()}
+
+
+def sign_flip_family(coefficients, chunk_size=1024):
+    """Exact joint-vector sign flips, max-correcting every remaining dimension.
+
+    Input is participant × contrast × arbitrary tested locations. The same sign
+    is applied to every coefficient/location from one participant. Symmetry is
+    required for the complete participant coefficient vector under its null.
+    """
+    coefficients = np.asarray(coefficients, dtype=np.float64)
+    n, k = coefficients.shape[:2]
+    if n < 3 or n > 16 or not np.isfinite(coefficients).all():
+        raise ValueError('Need finite effects from 3–16 independent participants')
+    if chunk_size < 1:
+        raise ValueError('chunk_size must be positive')
+    shape = coefficients.shape[2:]
+    x = coefficients.reshape(n, k, -1)
+    signs = np.asarray(list(itertools.product((-1., 1.), repeat=n)))
+    observed = t_squared(coefficients).reshape(-1)
+    uncorrected = np.empty_like(observed)
+    maxima = np.zeros(len(signs))
+    for start in range(0, x.shape[-1], chunk_size):
+        end = min(start+chunk_size, x.shape[-1])
+        block = x[:, :, start:end]
+        means = (signs @ block.reshape(n, -1)).reshape(len(signs), k, -1)/n
+        sum_squares = np.sum(block*block, axis=0)
+        # Squared data are invariant under participant sign flips.
+        variance = (sum_squares[None]-n*means*means)/(n*(n-1))
+        floor = np.finfo(float).eps*np.maximum(1., means*means)
+        statistics = np.sum(means*means/np.maximum(variance, floor), axis=1)
+        maxima = np.maximum(maxima, statistics.max(axis=1))
+        uncorrected[start:end] = np.mean(
+            statistics >= observed[None, start:end]-1e-10, axis=0)
+    sorted_maxima = np.sort(maxima)
+    corrected = (len(signs)-np.searchsorted(sorted_maxima, observed-1e-10,
+                                           side='left'))/len(signs)
+    return dict(statistic=observed.reshape(shape), p_uncorrected=uncorrected.reshape(shape),
+                p_max_family=corrected.reshape(shape), null_maxima=maxima)
+
+
+def family_adjustment(result, n_families=len(FAMILIES)):
+    return np.minimum(1., result['p_max_family']*n_families)

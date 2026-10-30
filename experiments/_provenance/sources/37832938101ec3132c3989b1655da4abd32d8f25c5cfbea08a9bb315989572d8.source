@@ -1,0 +1,230 @@
+"""Local reports for the matched preprocessing sensitivity comparison."""
+import argparse
+import hashlib
+import html
+import json
+from pathlib import Path
+import numpy as np
+import pandas as pd
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+from experiments.task4_baseline.events import WAVEFORMS
+from .analysis import paired_contrasts,BRANCHES,INTERVALS,PLOT_CHANNELS
+
+
+def render(out):
+    config = json.loads((out/'config.json').read_text())
+    status = json.loads((out/'status.json').read_text())
+    names = [s['name'] for s in config['representations']]
+    frames,health_frames,electrode_frames,audits,evoked = [],[],[],[],[]
+    for subject in status['completed']:
+        folder = out/f'sub-{subject}'
+        frames.append(pd.read_csv(folder/'repeatability.csv').assign(subject=subject))
+        health_frames.append(pd.read_csv(folder/'signal_health.csv').assign(subject=subject))
+        electrode_frames.append(pd.read_csv(folder/'electrode_repeatability.csv').assign(subject=subject))
+        audits.append(json.loads((folder/'audit.json').read_text()))
+        with np.load(folder/'summaries.npz') as saved:
+            evoked.append(np.stack([saved[f'{b}_evoked'] for b in BRANCHES]))
+    repeated = pd.concat(frames,ignore_index=True)
+    repeated.to_csv(out/'repeatability.csv',index=False)
+    keys = ['subject','branch','period','representation','position']
+    per_subject = repeated.groupby(keys,as_index=False)[['common_response_r','waveform_deviation_r']].median()
+    per_subject.to_csv(out/'participant_medians.csv',index=False)
+    group = per_subject.groupby(keys[1:],as_index=False)[['common_response_r','waveform_deviation_r']].median()
+    group.to_csv(out/'group_medians.csv',index=False)
+    paired,tests = paired_contrasts(per_subject)
+    paired.to_csv(out/'paired_participant_contrasts.csv',index=False)
+    tests.to_csv(out/'paired_tests.csv',index=False)
+    health = pd.concat(health_frames,ignore_index=True)
+    health.to_csv(out/'signal_health.csv',index=False)
+    participant_health = health.groupby(['subject','branch','period'],as_index=False).agg(
+        median_max_channel_ptp_uv=('max_channel_ptp_uv','median'),
+        fraction_events_over500uv=('exceeds_500uv','mean'),
+        median_line60_fraction=('line60_fraction','median'),
+        median_high80_190_fraction=('high80_190_fraction','median'))
+    participant_health.to_csv(out/'participant_signal_health.csv',index=False)
+    health_group = participant_health.groupby(['branch','period'],as_index=False).median(numeric_only=True).drop(columns='subject')
+    health_group.to_csv(out/'group_signal_health.csv',index=False)
+    electrodes = pd.concat(electrode_frames,ignore_index=True)
+    electrodes.to_csv(out/'electrode_repeatability.csv',index=False)
+    electrode_group = electrodes.groupby(['branch','period','representation','position','channel'],as_index=False).agg(
+        waveform_deviation_r=('waveform_deviation_r','median'),n_finite_subjects=('waveform_deviation_r','count'))
+    electrode_group.to_csv(out/'group_electrode_repeatability.csv',index=False)
+    electrode_pairs = electrodes.pivot(index=['subject','period','representation','position','channel'],
+        columns='branch',values='waveform_deviation_r')
+    electrode_pairs['difference_r'] = electrode_pairs['minimal']-electrode_pairs['cleaned']
+    electrode_differences = electrode_pairs.reset_index().groupby(
+        ['period','representation','position','channel'],as_index=False).difference_r.median()
+    electrode_differences.to_csv(out/'paired_electrode_group_medians.csv',index=False)
+    figures = []
+    colors = {'minimal':'#d95f02','cleaned':'#1b6ca8'}
+    for key,title in [('waveform_deviation_r','Waveform-specific deviations'),('common_response_r','Common response')]:
+        fig,axes = plt.subplots(2,2,figsize=(15,10),sharex=True,sharey=True)
+        for p in (1,2):
+            for col,period in enumerate(('pre','post')):
+                ax = axes[p-1,col]
+                for i,name in enumerate(names):
+                    for b,shift in [('minimal',-.12),('cleaned',.12)]:
+                        rows = per_subject[(per_subject.position == p) & (per_subject.period == period) &
+                            (per_subject.representation == name) & (per_subject.branch == b)][key]
+                        ax.scatter(rows,np.full(len(rows),i+shift),s=10,alpha=.4,color=colors[b])
+                        ax.plot(rows.median(),i+shift,'|',color=colors[b],markersize=14,markeredgewidth=3)
+                ax.axvline(0,lw=.7,color='.6')
+                ax.set_xlim(-1.02,1.02)
+                ax.set_yticks(range(len(names)),names)
+                ax.set_title(f'Position {p}: {period} ({INTERVALS[period][0]*1000:g} to {INTERVALS[period][1]*1000:g} ms)')
+                ax.set_xlabel('Split-half Pearson r')
+        handles = [plt.Line2D([],[],color=colors[b],lw=3,label=b) for b in BRANCHES]
+        fig.legend(handles=handles,loc='upper center',ncol=2,bbox_to_anchor=(.5,.94))
+        fig.suptitle(f'{title}: matched preprocessing comparison\nDots: participant medians; thick marks: group median; descriptive')
+        fig.tight_layout(rect=(0,0,1,.89))
+        path = out/f'{key}.png'
+        fig.savefig(path,dpi=140)
+        plt.close(fig)
+        figures.append(path)
+
+    channels = np.load(out/f'sub-{status["completed"][0]}'/'summaries.npz')['channels'].tolist()
+    derivative_names = [name for name in names if name.startswith('deriv')]
+    displayed = electrode_differences[electrode_differences.representation.isin(derivative_names)]
+    bound = max(float(displayed.difference_r.abs().max()),.05)
+    fig,axes = plt.subplots(2,2,figsize=(13,17),sharey=True)
+    for row,p in enumerate((1,2)):
+        for col,period in enumerate(INTERVALS):
+            d = displayed[(displayed.position == p) & (displayed.period == period)]
+            matrix = d.pivot(index='channel',columns='representation',values='difference_r').loc[channels,derivative_names]
+            im = axes[row,col].imshow(matrix,origin='lower',aspect='auto',interpolation='nearest',
+                cmap='RdBu_r',vmin=-bound,vmax=bound)
+            axes[row,col].set_xticks(range(len(derivative_names)),derivative_names)
+            axes[row,col].set_yticks(range(len(channels)),channels,fontsize=6)
+            axes[row,col].set_title(f'Position {p}, {period}')
+    fig.suptitle('Per-electrode Gaussian-derivative repeatability: minimal minus cleaned\nMedian paired participant Δr; descriptive, no per-electrode significance test')
+    fig.subplots_adjust(top=.93,bottom=.05,left=.07,right=.86,hspace=.15,wspace=.13)
+    fig.colorbar(im,cax=fig.add_axes([.91,.25,.02,.5]),label='Median paired Δr')
+    path = out/'electrode_derivative_differences.png'
+    fig.savefig(path,dpi=140)
+    plt.close(fig)
+    figures.append(path)
+
+    # Fixed C3 at fixed 20-ms sigma, chosen before observing this comparison.
+    mean = np.mean(np.asarray(evoked,dtype=float),axis=0)
+    r = names.index('deriv20')
+    c = list(PLOT_CHANNELS).index('C3')
+    wave_colors = ('#2171b5','#d94801','#238b45','#88419d','#a6761d')
+    for period_index,period in enumerate(INTERVALS):
+        values = mean[:,:,period_index]  # branch x representation x waveform x position x channel x time
+        deviations = values-values.mean(axis=2,keepdims=True)
+        bound = max(float(np.max(np.abs(deviations[:,r,:,:,c])))*1.1,1e-6)
+        t = np.arange(values.shape[-1])/audits[0]['sfreq']+INTERVALS[period][0]
+        fig,axes = plt.subplots(2,2,figsize=(13,8),sharex=True,sharey=True)
+        for p in (0,1):
+            for b,branch in enumerate(BRANCHES):
+                ax = axes[p,b]
+                for w,wave in enumerate(WAVEFORMS.values()):
+                    ax.plot(t*1000,deviations[b,r,w,p,c],color=wave_colors[w],label=wave,lw=1)
+                ax.axhline(0,color='.7',lw=.5)
+                ax.set_ylim(-bound,bound)
+                ax.set_title(f'{branch}, position {p+1}')
+                ax.set_ylabel('µV/s')
+                if p == 1:
+                    ax.set_xlabel('Time from recorded trigger (ms)')
+        handles,labels = axes[0,0].get_legend_handles_labels()
+        fig.legend(handles,labels,ncol=5,loc='upper center',bbox_to_anchor=(.5,.91))
+        fig.suptitle(f'C3 Gaussian derivative σ=20 ms: {period} waveform deviations\nGroup averages, equal participant/observed-comparison weight; descriptive')
+        fig.tight_layout(rect=(0,0,1,.85))
+        path = out/f'C3_deriv20_{period}.png'
+        fig.savefig(path,dpi=140)
+        plt.close(fig)
+        figures.append(path)
+
+    lines = ['# Task 4 matched preprocessing comparison','',
+        f'Completed {len(audits)} / {len(config["subjects"])} participants. Errors: {status["errors"] or "none"}.',
+        f'{sum(a["n_events"] for a in audits)} matched events; '
+        f'{sum(a["repeatability_support"]["n_pairs_used"] for a in audits)} pairs in repeatability. '
+        'No branch-specific trial removal, classifier or new ICA fitting.','',
+        '## Method','',
+        'Minimal = verified recorded EEG, 62-channel average reference, interval-specific baseline '
+        'and feature operators only. No added high-pass/notch/low-pass, ICA or onset interpolation. '
+        'Recorded EEG may already include acquisition-system filtering. Cleaned = the exact supplied '
+        'processing with the original saved ICA fit and exclusions. Changing the entire pipeline '
+        'does not identify which individual stage caused a difference.','',
+        'Post interval [100,500) ms, baseline [−250,−50) ms. Pre control [−500,−100) ms, '
+        'baseline [−850,−650) ms: an exact 600-ms translation of the post interval/baseline. '
+        'Real padding −900 to +650 ms is required for every frozen event. Both intervals have '
+        '400 samples at 1 kHz. The local feature kernels do not cross recorded trigger onset; earlier '
+        'continuous filtering in the cleaned branch may still spread artifacts.','',
+        'Same ten representations and 100 complete-pair splits as the preceding multiscale experiment; '
+        'split within ordered comparison cells, omit singleton cells only from repeatability, '
+        'balance observed comparison means. Compute participant medians over splits, then group '
+        'medians. Correlations describe common or waveform-deviation electrode × time patterns, '
+        'not single-trial classification.','',
+        f'Maximum cleaned-feature reproduction error: {max(a["prior_feature_max_error"] for a in audits):.3g}. '
+        f'Maximum prior post-correlation reproduction error: {max(a["prior_post_repeatability_max_error"] for a in audits):.3g}.','',
+        '## Waveform-specific repeatability','',
+        '| Representation | Position | Minimal pre r | Cleaned pre r | Minimal post r | Cleaned post r |',
+        '| --- | --- | --- | --- | --- | --- |']
+    table = group.pivot(index=['representation','position'],columns=['branch','period'],values='waveform_deviation_r')
+    for name in names:
+        for p in (1,2):
+            x = table.loc[(name,p)]
+            lines.append(f'| {name} | {p} | {x[("minimal","pre")]:.3f} | {x[("cleaned","pre")]:.3f} | '
+                         f'{x[("minimal","post")]:.3f} | {x[("cleaned","post")]:.3f} |')
+    lines += ['', '## Paired participant contrasts','',
+        'For waveform-deviation r, compare minimal−cleaned post, minimal−cleaned pre, '
+        'and the post−pre difference between branches. The last is '
+        '(minimal post−minimal pre)−(cleaned post−cleaned pre); it is a diagnostic contrast, '
+        'not a correction proving stimulus specificity. Exact whole-participant sign flips '
+        'enumerate 2^N patterns, using a two-sided studentized statistic and maximum correction '
+        'over all three contrasts × representations × two positions (60 tests with defaults). '
+        'This assumes independent participants and symmetric participant-difference errors. '
+        'It is not randomized assignment of preprocessing or a causal neural test.','',
+        '| Contrast | Corrected p ≤ .05 | Smallest corrected p |','| --- | --- | --- |']
+    if not tests.empty:
+        for contrast,g in tests.groupby('contrast'):
+            lines.append(f'| {contrast} | {int((g.p_fwer <= .05).sum())} / {len(g)} | {g.p_fwer.min():.4f} |')
+    else:
+        lines.append('| Not run | Need at least three participants | — |')
+    lines += ['', 'Group median r and median paired Δr are different summaries. All participant '
+        'values and corrected contrasts are saved; no feature is selected from these results.','',
+        '## Signal checks','',
+        'These indicators do not change the cohort. Welch spectra use 400-ms windows '
+        '(2.5-Hz bin spacing), constant detrending and a Hann window. The line fraction is '
+        'power in 58–62 Hz / 1–100 Hz; the high-frequency fraction is 80–190 Hz / 1–190 Hz. '
+        'Summarize ratios across channels, then trials, then participants. PTP is the '
+        'maximum across channels per event; report participant then group medians. '
+        'Neither fraction is a direct neural signal-to-noise measure; changes in the '
+        'normalizing total power also affect these fractions.','',
+        '| Branch | Period | Median max-channel PTP (µV) | Median fraction events >500 µV | Line fraction | High-frequency fraction |',
+        '| --- | --- | --- | --- | --- | --- |']
+    for x in health_group.itertuples():
+        lines.append(f'| {x.branch} | {x.period} | {x.median_max_channel_ptp_uv:.1f} | '
+            f'{x.fraction_events_over500uv:.3f} | {x.median_line60_fraction:.4f} | {x.median_high80_190_fraction:.4f} |')
+    lines += ['', '## Limits','',
+        '- A stronger minimal-branch correlation can reflect drift, eye/muscle activity, line noise, '
+        'stimulation contamination or context. It does not by itself demonstrate retained neural derivatives.',
+        '- Pre-trigger activity can contain anticipation and preceding-stimulation responses, especially '
+        'before second presentations. It is a contextual control, not a guaranteed null or pure artifact detector.',
+        '- The original cleaned-QC cohort is frozen. Results are conditional on that selection; '
+        'raw amplitude flags are reported without choosing a different subset.',
+        '- Full-recording ICA, temporal filtering and shared comparison contexts can contribute '
+        'dependence between split halves. Participant sign-flip tests use ten participants, not the repeated splits.',
+        '- Trigger-to-current timing remains unverified. Findings apply to these features and '
+        '100–500 ms; responses earlier than 100 ms, true scale invariance and decoding remain untested.','',
+        '## Figures','']
+    for path in figures:
+        lines += [f'![{path.stem}]({path.name})','']
+    (out/'RESULTS.md').write_text('\n'.join(lines)+'\n',encoding='utf-8')
+    images = ''.join(f'<figure><figcaption>{p.stem}</figcaption><img src="{p.name}" loading="lazy"></figure>' for p in figures)
+    (out/'index.html').write_text('<!doctype html><meta charset="utf-8"><title>EEG preprocessing comparison</title>'
+        '<style>body{max-width:1250px;margin:30px auto;padding:0 20px;font:16px/1.5 system-ui}'
+        'pre{white-space:pre-wrap}img{max-width:100%}figure{margin:40px 0}</style><pre>'
+        +html.escape('\n'.join(lines[:lines.index('## Figures')]))+'</pre>'+images,encoding='utf-8')
+    sources = [Path(__file__),Path(__file__).with_name('analysis.py'),Path('experiments/task4_multiscale/analysis.py')]
+    (out/'render_provenance.json').write_text(json.dumps({p.as_posix():hashlib.sha256(p.read_bytes()).hexdigest()
+        for p in sources},indent=2)+'\n')
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('output',type=Path)
+    render(parser.parse_args().output)

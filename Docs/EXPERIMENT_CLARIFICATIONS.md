@@ -2,7 +2,7 @@
 
 Updated 2026-10-13 from Jason Whitson's reply supplied in the collaboration email thread. His table and explicit correction are the authoritative dataset label reference. The original PDFs are retained unchanged as historical documentation.
 
-Implementation update 2026-10-16: the separate [Task 4 baseline](../experiments/task4_baseline/README.md) now implements debounced extraction, strict CSV alignment, fixed-window classifiers, and grouped validation. The package moved into `experiments/` on 20 October. Later email replies confirm that current-monitor recordings were saved on the collection laptop. Timing alignment remains unconfirmed. The user has identified `T4 Waveform Detected` as a zero-filled legacy field in current Task 4 data; analysis uses `T4 Naturalness Value` and does not classify legacy zeros as failed trials.
+Implementation update 2026-10-16: the separate [Task 4 baseline](../experiments/waveform_decoding/e001_voltage_baseline/README.md) now implements debounced extraction, strict CSV alignment, fixed-window classifiers, and grouped validation. The package moved into `experiments/` on 20 October. Later email replies confirm that current-monitor recordings were saved on the collection laptop. Timing alignment remains unconfirmed. The user has identified `T4 Waveform Detected` as a zero-filled legacy field in current Task 4 data; analysis uses `T4 Naturalness Value` and does not classify legacy zeros as failed trials.
 
 ## Confirmed trigger mapping
 

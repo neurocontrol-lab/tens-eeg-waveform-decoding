@@ -1,0 +1,150 @@
+"""Audit saved baseline arrays and its exact within-participant/LOSO folds."""
+import argparse
+import hashlib
+import importlib.metadata
+import json
+from pathlib import Path
+
+import numpy as np
+import pandas as pd
+from threadpoolctl import threadpool_limits
+
+from experiments.waveform_decoding.e001_voltage_baseline.evaluate import make_splits
+from .core import audit_training_fold, describe_features, feature_contract
+
+
+def sha(path):
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def write_json(path,value):
+    path.write_text(json.dumps(value,indent=2,allow_nan=False)+'\n',encoding='utf-8')
+
+
+def load_bundle(source,subject):
+    folder = source/f'sub-{subject}'
+    events = pd.read_csv(folder/'events.csv')
+    meta = events[events.analysis_eligible].reset_index(drop=True)
+    if meta.subject.nunique() != 1 or int(meta.subject.iloc[0]) != subject:
+        raise ValueError('Participant identity mismatch')
+    with np.load(folder/'features.npz') as saved:
+        features = {name:saved[name] for name in saved.files}
+    if any(len(x) != len(meta) for x in features.values()):
+        raise ValueError('Saved feature rows do not match eligible events')
+    if not (meta.groupby('pair_id').size() == 2).all():
+        raise ValueError('Incomplete eligible pairs')
+    return features,meta
+
+
+def verify_saved_folds(source,meta,splits,mode):
+    filename = source/'loso_predictions.csv' if mode == 'loso' else source/f'sub-{int(meta.subject.iloc[0])}/predictions.csv'
+    saved = pd.read_csv(filename)
+    keys = ['subject','event_index','pair_id','group','position','trigger']
+    pd.testing.assert_frame_equal(meta[keys],saved[keys],check_dtype=False)
+    labels = np.full(len(meta),-1,int)
+    for fold,(_,test) in enumerate(splits):
+        labels[test] = fold
+    if not np.array_equal(labels,saved.fold.to_numpy()):
+        raise ValueError('Current split membership differs from the original classifier run')
+    return filename
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--source',type=Path,default=Path('output/task4_baseline'))
+    parser.add_argument('--output',type=Path,default=Path('output/task4_feature_audit'))
+    parser.add_argument('--subjects',default=','.join(map(str,range(3,13))))
+    parser.add_argument('--bootstrap-repeats',type=int,default=10)
+    parser.add_argument('--seed',type=int,default=20261023)
+    args = parser.parse_args()
+    subjects = [int(value) for value in args.subjects.split(',')]
+    if not subjects or len(subjects) != len(set(subjects)) or not set(subjects) <= set(range(3,13)):
+        parser.error('Choose unique participants 3-12')
+    if args.bootstrap_repeats < 2:
+        parser.error('At least two descriptive covariance resamples required')
+    if args.output.exists() and any(args.output.iterdir()):
+        parser.error('Choose a fresh output directory')
+    args.output.mkdir(parents=True,exist_ok=True)
+    original = json.loads((args.source/'run_config.json').read_text())
+    evaluate_path = Path('experiments/waveform_decoding/e001_voltage_baseline/evaluate.py')
+    if original['implementation_sha256']['evaluate.py'] != sha(evaluate_path):
+        raise ValueError('Baseline model/split implementation changed; audit the original implementation explicitly')
+    config = dict(source=str(args.source.resolve()),subjects=subjects,
+        bootstrap_repeats=args.bootstrap_repeats,seed=args.seed,
+        source_run_config_sha256=sha(args.source/'run_config.json'),
+        dependencies={name:importlib.metadata.version(name) for name in ['numpy','pandas','scipy','scikit-learn','matplotlib']},
+        implementation_sha256={str(p):sha(p) for p in [*Path(__file__).parent.glob('*.py'),
+            Path('experiments/waveform_decoding/e001_voltage_baseline/evaluate.py'),Path('experiments/waveform_decoding/e001_voltage_baseline/features.py')]},
+        model='Original StandardScaler + equal-prior lsqr LDA auto shrinkage; training data only',
+        classification_scores_computed=False,feature_selection_performed=False)
+    write_json(args.output/'run_config.json',config)
+    try:
+        bundles = [load_bundle(args.source,s) for s in subjects]
+        names = list(bundles[0][0])
+        if any(set(features) != set(names) for features,_ in bundles):
+            raise ValueError('Different saved feature sets')
+        distributions = []
+        inputs = {}
+        for subject,(features,meta) in zip(subjects,bundles):
+            for filename in ['features.npz','events.csv','predictions.csv']:
+                path = args.source/f'sub-{subject}'/filename
+                inputs[str(path)] = sha(path)
+            for name,x in features.items():
+                distributions.append(describe_features(x,feature_contract(name,x.shape[1])).assign(
+                    subject=subject,feature_set=name,n_events=len(meta)))
+        pd.concat(distributions,ignore_index=True).to_csv(args.output/'feature_distributions.csv',index=False)
+        fold_rows, shrinkage_rows, boot_rows, membership, eigenvalues = [],[],[],[],{}
+        jobs = [(f'sub-{s}','within',features,meta) for s,(features,meta) in zip(subjects,bundles)]
+        if len(subjects) > 1:
+            pooled = {name:np.concatenate([f[name] for f,_ in bundles]) for name in names}
+            jobs.append(('cohort','loso',pooled,pd.concat([m for _,m in bundles],ignore_index=True)))
+        with threadpool_limits(limits=1):
+            for identity,mode,features,meta in jobs:
+                splits = make_splits(meta,mode)
+                if mode == 'loso' and subjects != list(range(3,13)):
+                    # The saved LOSO run used all ten participants. Smaller runs are audit smoke checks.
+                    saved_match = False
+                else:
+                    path = verify_saved_folds(args.source,meta,splits,mode)
+                    inputs[str(path)] = sha(path)
+                    saved_match = True
+                print(f'{identity}: {len(meta)} events; {len(splits)} {mode} folds',flush=True)
+                for fold,(train,test) in enumerate(splits):
+                    membership.append(dict(identity=identity,mode=mode,fold=fold,
+                        saved_fold_membership_verified=saved_match,
+                        train_events=meta.iloc[train][['subject','event_index']].values.tolist(),
+                        test_events=meta.iloc[test][['subject','event_index']].values.tolist()))
+                    for name,x in features.items():
+                        contract = feature_contract(name,x.shape[1])
+                        row, shrink, boot, eig = audit_training_fold(x[train],x[test],
+                            meta.trigger.to_numpy()[train],meta.iloc[train].reset_index(drop=True),
+                            repeats=args.bootstrap_repeats,seed=args.seed+fold,
+                            units=[entry['unit'] for entry in contract])
+                        entry = contract[row['heldout_max_column']]
+                        largest_event = meta.iloc[test[row['heldout_max_row']]]
+                        row.update(heldout_max_feature=entry['feature'],heldout_max_unit=entry['unit'],
+                            heldout_max_subject=int(largest_event.subject),
+                            heldout_max_event_index=int(largest_event.event_index))
+                        tags = dict(identity=identity,mode=mode,fold=fold,feature_set=name)
+                        fold_rows.append(dict(**tags,**row))
+                        shrinkage_rows.append(shrink.assign(**tags))
+                        boot_rows.append(boot.assign(**tags))
+                        eigenvalues[f'{identity}_{fold}_{name}_empirical'] = eig[0]
+                        eigenvalues[f'{identity}_{fold}_{name}_regularized'] = eig[1]
+        pd.DataFrame(fold_rows).to_csv(args.output/'fold_audit.csv',index=False)
+        pd.concat(shrinkage_rows,ignore_index=True).to_csv(args.output/'class_shrinkage.csv',index=False)
+        pd.concat(boot_rows,ignore_index=True).to_csv(args.output/'covariance_resamples.csv',index=False)
+        np.savez_compressed(args.output/'covariance_eigenspectra.npz',**eigenvalues)
+        write_json(args.output/'fold_membership.json',membership)
+        write_json(args.output/'input_hashes.json',inputs)
+        write_json(args.output/'status.json',dict(completed=subjects,errors={},complete=True))
+        from .report import write_report
+        write_report(args.output)
+    except Exception as exc:
+        write_json(args.output/'status.json',dict(complete=False,error=f'{type(exc).__name__}: {exc}'))
+        raise
+    print(f'Audit report: {(args.output/"RESULTS.md").resolve()}',flush=True)
+
+
+if __name__ == '__main__':
+    main()

@@ -1,0 +1,185 @@
+"""Reconstruct saved-ICA EEG, then run a fixed temporal scale-space experiment."""
+import argparse
+import importlib.metadata
+import json
+from pathlib import Path
+import traceback
+import numpy as np
+import pandas as pd
+from threadpoolctl import threadpool_limits
+
+from experiments.task4_baseline.events import load_recording, trigger_runs, align_events, read_behavior
+from experiments.task4_response_diagnostics.__main__ import sha, write_json
+from experiments.task4_response_diagnostics.preprocess import interpolate_stimuli, SETTINGS
+from experiments.task4_response_diagnostics.analysis import epoch_and_slopes, fit_effects
+from .analysis import (specifications, transform, validate_support, window_features,
+                       condition_weights, split_weights, repeatability, group_tests,
+                       SCALES_MS, WINDOWS, TRUNCATE, SEED, REPEATS)
+
+
+def reconstruct(subject, args, destination):
+    """Read original fits only; fail rather than silently refit or change cleaning."""
+    import mne
+    mne.set_log_level('WARNING')
+    prior = args.prior/f'sub-{subject}'
+    provenance = json.loads((prior/'provenance.json').read_text())
+    audit = json.loads((prior/'preprocessing.json').read_text())
+    deps = {name:importlib.metadata.version(name) for name in provenance['dependencies']}
+    if deps != provenance['dependencies'] or provenance['preprocessing'] != SETTINGS:
+        raise ValueError('Previous dependencies/preprocessing differ; do not reuse ICA silently')
+    paths = [Path('experiments/task4_response_diagnostics/preprocess.py'),
+             Path('experiments/task4_response_diagnostics/analysis.py'),
+             Path('experiments/task4_baseline/events.py')]
+    if {p.name:sha(p) for p in paths} != provenance['implementation']:
+        raise ValueError('Previous numerical source changed; investigate before reconstructing')
+    source = args.data_dir/f'Subject{subject}_data/EEGDATA_SUB{subject}-T4.xdf'
+    if sha(source) != provenance['source_sha256'] or sha(args.master_csv) != provenance['csv_sha256']:
+        raise ValueError('Original input/CSV hashes differ')
+    candidates = [p for p in args.ica_cache.glob(f'sub-{subject}-*')
+                  if (p/'complete.json').exists() and (p/'cleaning-ica.fif').exists()
+                  and json.loads((p/'provenance.json').read_text()) == provenance]
+    if len(candidates) != 1:
+        raise ValueError(f'Expected one matched saved ICA, found {len(candidates)}')
+    fit_path = candidates[0]/'cleaning-ica.fif'
+    data,names,trigger,timestamps,sfreq = load_recording(source)
+    events = align_events(trigger_runs(trigger,sfreq),read_behavior(args.master_csv,subject),subject,timestamps)
+    del trigger
+    raw = mne.io.RawArray(data,mne.create_info(names,sfreq,'eeg'),verbose=False)
+    raw.set_montage('standard_1020',on_missing='raise',verbose=False)
+    raw.filter(.5,None,method='iir',iir_params=dict(order=94,ftype='cheby2',rs=40,output='sos'),
+               phase='zero',verbose=False)
+    raw.notch_filter(np.arange(60.,sfreq/2,60.),verbose=False)
+    raw.set_eeg_reference('average',projection=False,verbose=False)
+    ica = mne.preprocessing.read_ica(fit_path,verbose=False)
+    if ica.ch_names != names or sorted(ica.exclude) != audit['ica_excluded']:
+        raise ValueError('Saved ICA channel ordering/exclusions disagree with previous run')
+    ica.apply(raw,verbose=False)
+    interpolate_stimuli(raw._data,events['sample'].to_numpy(),sfreq)
+    raw.filter(None,190.,verbose=False)
+    cleaned = raw.get_data()
+    del raw,data,ica
+    old_epochs,old_slopes,_,old_features,manifest = epoch_and_slopes(cleaned,events,timestamps,sfreq)
+    previous_meta = pd.read_csv(prior/'events.csv')
+    for column in ('sample','trigger','pair_id','position','diagnostic_eligible'):
+        if not np.array_equal(manifest[column].to_numpy(),previous_meta[column].to_numpy()):
+            raise ValueError(f'Reconstructed manifest differs in {column}')
+    with np.load(prior/'responses.npz') as previous:
+        if previous['channels'].tolist() != names:
+            raise ValueError('Prior response channel order differs')
+        np.testing.assert_allclose(old_features,previous['features'],rtol=2e-7,atol=2e-5,
+                                   err_msg='Saved ICA reconstruction does not reproduce prior features')
+        error = float(np.max(np.abs(old_features-previous['features'])))
+    del old_epochs,old_slopes,old_features
+    offsets = np.arange(round(-.4*sfreq),round(.65*sfreq)+1)
+    times = offsets/sfreq
+    valid = []
+    for row in events.itertuples():
+        ix = int(row.sample)+offsets
+        inside = ix[0] >= 0 and ix[-1] < cleaned.shape[1]
+        okay = inside and not (row.previous_gap_s <= .4 or row.next_gap_s <= .65)
+        if okay:
+            okay = bool(np.all(np.abs(np.diff(timestamps[ix])-1/sfreq) <= .1/sfreq)
+                        and np.isfinite(cleaned[:,ix]).all())
+        valid.append(okay)
+    manifest['multiscale_padding_valid'] = valid
+    manifest['multiscale_pair_padding_valid'] = manifest.groupby('pair_id').multiscale_padding_valid.transform('all')
+    manifest['multiscale_eligible'] = manifest.diagnostic_eligible & manifest.multiscale_pair_padding_valid
+    selected = manifest[manifest.multiscale_eligible].reset_index(drop=True)
+    epochs = np.stack([cleaned[:,int(sample)+offsets]*1e6 for sample in selected['sample']])
+    baseline = (times >= -.25) & (times < -.05)
+    epochs -= epochs[:,:,baseline].mean(axis=-1,keepdims=True)
+    del cleaned,timestamps
+    manifest.to_csv(destination/'events.csv',index=False)
+    provenance.update(saved_ica_file=str(fit_path.resolve()),saved_ica_sha256=sha(fit_path),
+                      original_report=str(prior.resolve()),original_feature_max_absolute_error=error,
+                      n_aligned=len(manifest),n_eligible=len(selected),n_extra_padding_exclusions=
+                      int((manifest.diagnostic_eligible & ~manifest.multiscale_eligible).sum()),
+                      ica_refitted=False)
+    write_json(destination/'reconstruction.json',provenance)
+    return epochs,times,sfreq,names,selected
+
+
+def prepare(subject,args,specs):
+    out = args.output/f'sub-{subject}'
+    out.mkdir()
+    print(f'Subject {subject}: reconstruct EEG from verified saved ICA',flush=True)
+    epochs,times,sfreq,channels,meta = reconstruct(subject,args,out)
+    validate_support(times,sfreq,specs)
+    weights,split_audit = split_weights(meta)
+    means_weight = condition_weights(meta).reshape(10,len(meta))
+    features,evoked,repeat_rows,electrode_rows = [],[],[],[]
+    metrics = []
+    display = (times >= -.25) & (times <= .5)
+    for spec in specs:
+        print(f'  {spec["name"]}: features and matched split-halves',flush=True)
+        values = transform(epochs,sfreq,spec)
+        features.append(window_features(values,times))
+        metrics += [spec['name']+'__mean',spec['name']+'__rms']
+        evoked.append((means_weight@values[:,:,display].reshape(len(meta),-1)).reshape(
+            5,2,len(channels),-1).astype(np.float32))
+        r,e = repeatability(values,times,weights,channels,spec['name'])
+        repeat_rows.append(r)
+        electrode_rows.append(e)
+    features = np.concatenate(features,axis=1)
+    effects,design = fit_effects(features,meta)
+    np.savez_compressed(out/'summaries.npz',channels=np.asarray(channels),times=times[display],
+                        evoked=np.stack(evoked),features=features,metrics=np.asarray(metrics),**effects)
+    pd.concat(repeat_rows).to_csv(out/'repeatability.csv',index=False)
+    pd.concat(electrode_rows).to_csv(out/'electrode_repeatability.csv',index=False)
+    meta.groupby(['waveform','position','comparison']).size().rename('n').to_csv(out/'cell_support.csv')
+    write_json(out/'audit.json',dict(subject=subject,n_events=len(meta),sfreq=sfreq,
+                                    design=design,repeatability=split_audit))
+    write_json(out/'complete.json',dict(subject=subject))
+    print(f'  Completed {subject}: {len(meta)} epochs',flush=True)
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--subjects',default=','.join(map(str,range(3,13))))
+    parser.add_argument('--prior',type=Path,default=Path('output/task4_response_diagnostics_final_20261021'))
+    parser.add_argument('--ica-cache',type=Path,default=Path('output/task4_response_cache'))
+    parser.add_argument('--data-dir',type=Path,default=Path('EEGData'))
+    parser.add_argument('--master-csv',type=Path,default=Path('EEG_Codes_Export/02_SourceLocalization_Task4/Master_Data_ToSub12 (1).csv'))
+    parser.add_argument('--output',type=Path,default=Path('output/task4_multiscale_20261023'))
+    parser.add_argument('--no-dog',action='store_true',help='Omit secondary difference-of-Gaussians representations')
+    args = parser.parse_args()
+    subjects = [int(s) for s in args.subjects.split(',')]
+    if not subjects or len(subjects) != len(set(subjects)) or not set(subjects) <= set(range(3,13)):
+        parser.error('Choose unique subjects 3-12')
+    if args.output.exists():
+        parser.error('Use a fresh output directory; existing results are preserved')
+    status = json.loads((args.prior/'status.json').read_text())
+    if not set(subjects) <= set(status['completed']) or status['errors']:
+        parser.error('Prior diagnostic stages must be complete without failures')
+    specs = specifications(not args.no_dog)
+    args.output.mkdir(parents=True)
+    sources = list(Path(__file__).parent.glob('*.py'))
+    sources += [Path('experiments/task4_response_diagnostics/analysis.py'),
+                Path('experiments/task4_response_diagnostics/preprocess.py'),
+                Path('experiments/task4_baseline/events.py')]
+    write_json(args.output/'config.json',dict(subjects=subjects,representations=specs,
+        scales_ms=SCALES_MS,windows=WINDOWS,truncate=TRUNCATE,repeats=REPEATS,seed=SEED,
+        analysis_interval_seconds=[.1,.5],epoch_support_seconds=[-.4,.65],
+        dependencies=json.loads((args.prior/'run_config.json').read_text())['dependencies'],
+        implementation={p.as_posix():sha(p) for p in sources},
+        true_scale_invariance_tested=False,classifier_fitted=False,ica_refitted=False))
+    completed,errors = [],{}
+    with threadpool_limits(limits=2):
+        for subject in subjects:
+            try:
+                prepare(subject,args,specs)
+                completed.append(subject)
+            except Exception as exc:
+                errors[str(subject)] = f'{type(exc).__name__}: {exc}'
+                print(traceback.format_exc(),flush=True)
+            write_json(args.output/'status.json',dict(completed=completed,errors=errors))
+    from .report import render
+    if completed:
+        render(args.output)
+    if errors:
+        raise SystemExit(1)
+    print(f'Report: {(args.output/"index.html").resolve()}',flush=True)
+
+
+if __name__ == '__main__':
+    main()

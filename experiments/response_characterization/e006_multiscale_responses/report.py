@@ -1,0 +1,251 @@
+"""Regenerable local group report; participant outputs stay under ignored output/."""
+import argparse
+import hashlib
+import html
+import json
+from pathlib import Path
+import numpy as np
+import pandas as pd
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+from experiments.waveform_decoding.e001_voltage_baseline.events import WAVEFORMS
+from .analysis import group_tests, SCALES_MS
+
+
+def render(out):
+    status = json.loads((out/'status.json').read_text())
+    config = json.loads((out/'config.json').read_text())
+    subjects = status['completed']
+    specs = config['representations']
+    names = [s['name'] for s in specs]
+    data, repeats, electrode, audits, reconstruction = [],[],[],[],[]
+    channels,times,metrics = None,None,None
+    for subject in subjects:
+        folder = out/f'sub-{subject}'
+        with np.load(folder/'summaries.npz') as saved:
+            if channels is None:
+                channels,times,metrics = saved['channels'].tolist(),saved['times'],saved['metrics'].tolist()
+            elif (saved['channels'].tolist() != channels or saved['metrics'].tolist() != metrics
+                  or not np.array_equal(saved['times'],times)):
+                raise ValueError('Participant axes differ; do not pool')
+            data.append(dict(evoked=saved['evoked'],effects={k:saved[k] for k in ('waveform','position','interaction')}))
+        repeats.append(pd.read_csv(folder/'repeatability.csv').assign(subject=subject))
+        electrode.append(pd.read_csv(folder/'electrode_repeatability.csv').assign(subject=subject))
+        audits.append(json.loads((folder/'audit.json').read_text()))
+        reconstruction.append(json.loads((folder/'reconstruction.json').read_text()))
+    tests = group_tests([d['effects'] for d in data],channels,metrics) if len(data) >= 3 else pd.DataFrame()
+    tests.to_csv(out/'effect_tests.csv',index=False)
+    repeated = pd.concat(repeats,ignore_index=True)
+    repeated.to_csv(out/'repeatability.csv',index=False)
+    per_subject = repeated.groupby(['subject','representation','position'],as_index=False)[
+        ['common_response_r','waveform_deviation_r']].median()
+    per_subject.to_csv(out/'repeatability_subject_medians.csv',index=False)
+    summary = per_subject.groupby(['representation','position'],as_index=False)[
+        ['common_response_r','waveform_deviation_r']].median()
+    summary.to_csv(out/'repeatability_group_medians.csv',index=False)
+    channel_values = pd.concat(electrode,ignore_index=True)
+    channel_values.to_csv(out/'electrode_repeatability.csv',index=False)
+    channel_summary = channel_values.groupby(['representation','position','channel'],as_index=False).agg(
+        waveform_deviation_r=('waveform_deviation_r','median'),
+        n_finite_subjects=('waveform_deviation_r','count'))
+    channel_summary.to_csv(out/'electrode_repeatability_group_medians.csv',index=False)
+    baseline = per_subject[per_subject.representation == 'slope25'][
+        ['subject','position','waveform_deviation_r']].rename(columns={'waveform_deviation_r':'reference_r'})
+    paired = per_subject[per_subject.representation.str.startswith('deriv')].merge(
+        baseline,on=['subject','position'],validate='many_to_one')
+    paired['difference_from_slope25'] = paired.waveform_deviation_r-paired.reference_r
+    paired.to_csv(out/'paired_derivative_repeatability.csv',index=False)
+    delta = paired.groupby(['representation','position'],as_index=False).difference_from_slope25.median()
+    delta.to_csv(out/'paired_derivative_group_medians.csv',index=False)
+    figures = []
+
+    fig,axes = plt.subplots(2,2,figsize=(15,10),sharex=True,sharey=True)
+    for pos in (1,2):
+        for col,key in enumerate(['common_response_r','waveform_deviation_r']):
+            ax = axes[pos-1,col]
+            for i,name in enumerate(names):
+                vals = per_subject[(per_subject.position == pos) & (per_subject.representation == name)][key]
+                ax.scatter(vals,np.full(len(vals),i),s=12,alpha=.45,color='#377eb8')
+                ax.plot(vals.median(),i,'|',color='black',markersize=15,markeredgewidth=2)
+            ax.axvline(0,color='.6',lw=.8)
+            ax.set_yticks(range(len(names)),names)
+            ax.set_xlim(-1.02,1.02)
+            ax.set_title(f'Position {pos}: '+('common response' if col == 0 else 'waveform deviations'))
+            ax.set_xlabel('Split-half Pearson r')
+    fig.suptitle('Matched 100–500-ms repeatability\nDots: participant median over 100 splits; black marks: group median (descriptive)')
+    fig.tight_layout(rect=(0,0,1,.94))
+    path = out/'repeatability.png'
+    fig.savefig(path,dpi=140)
+    plt.close(fig)
+    figures.append(path)
+
+    mean = np.mean([d['evoked'].astype(float) for d in data],axis=0)
+    mask = (times >= .1) & (times < .5)
+    deviations = mean-mean.mean(axis=1,keepdims=True)
+    wave_names = list(WAVEFORMS.values())
+    for channel in ('C3','C4','CP1','Pz'):
+        c = channels.index(channel)
+        values = np.stack([deviations[names.index(f'deriv{s:g}'),:,:,c][:,:,mask] for s in SCALES_MS])
+        bound = max(float(np.max(np.abs(values))),1e-6)
+        fig,axes = plt.subplots(5,2,figsize=(12,10),sharex=True,sharey=True)
+        for w,wave in enumerate(wave_names):
+            for p in range(2):
+                im = axes[w,p].imshow(values[:,w,p],aspect='auto',origin='lower',cmap='RdBu_r',interpolation='nearest',
+                    vmin=-bound,vmax=bound,extent=(100,500,-.5,2.5))
+                axes[w,p].set_yticks(range(3),[f'{s:g}' for s in SCALES_MS])
+                if p == 0:
+                    axes[w,p].set_ylabel(f'{wave}\nσ (ms)')
+                if w == 0:
+                    axes[w,p].set_title(f'Position {p+1}')
+                if w == 4:
+                    axes[w,p].set_xlabel('Time from trigger (ms)')
+        fig.suptitle(f'{channel}: Gaussian-derivative waveform deviations\nGroup mean; categorical Gaussian scales; descriptive, not a significance map')
+        fig.subplots_adjust(top=.89,bottom=.06,left=.12,right=.84,hspace=.25)
+        fig.colorbar(im,cax=fig.add_axes([.88,.25,.02,.5]),label='µV/s')
+        path = out/f'derivative_scale_space_{channel}.png'
+        fig.savefig(path,dpi=140)
+        plt.close(fig)
+        figures.append(path)
+
+    colors = ('#2171b5','#d94801','#238b45','#88419d','#a6761d')
+    groups = [('slopes',['slope25','deriv5','deriv10','deriv20']),
+              ('voltage',['voltage','gauss5','gauss10','gauss20']),
+              ('dog',[name for name in names if name.startswith('dog')])]
+    c = channels.index('C3')
+    for category,chosen in groups:
+        if not chosen:
+            continue
+        fig,axes = plt.subplots(len(chosen),2,figsize=(12,3*len(chosen)),sharex=True,squeeze=False)
+        for row,name in enumerate(chosen):
+            r = names.index(name)
+            bound = max(float(np.max(np.abs(mean[r,:,:,c][:,:,mask])))*1.1,1e-6)
+            for p in range(2):
+                ax = axes[row,p]
+                for w,wave in enumerate(wave_names):
+                    ax.plot(times[mask]*1000,mean[r,w,p,c,mask],color=colors[w],label=wave,lw=1)
+                ax.axhline(0,color='.7',lw=.5)
+                ax.set_ylim(-bound,bound)
+                ax.set_ylabel(f'{name}\n{specs[r]["unit"]}')
+                if row == 0:
+                    ax.set_title(f'Position {p+1}')
+                if row == len(chosen)-1:
+                    ax.set_xlabel('Time from trigger (ms)')
+        handles,labels = axes[0,0].get_legend_handles_labels()
+        # Reserve a fixed-height header so the short DoG figure also fits both lines and legend.
+        height = fig.get_figheight()
+        fig.legend(handles,labels,ncol=5,loc='upper center',bbox_to_anchor=(.5,1-.55/height))
+        fig.suptitle(f'C3: group {category} responses; equal participant/observed-comparison weight\nMatched 100–500-ms interval; descriptive',y=1-.10/height)
+        fig.tight_layout(rect=(0,0,1,1-1.10/height))
+        path = out/f'C3_{category}.png'
+        fig.savefig(path,dpi=140)
+        plt.close(fig)
+        figures.append(path)
+
+    fig,axes = plt.subplots(1,2,figsize=(14,15),sharey=True)
+    for p in (1,2):
+        table = channel_summary[channel_summary.position == p].pivot(
+            index='channel',columns='representation',values='waveform_deviation_r').loc[channels,names]
+        im = axes[p-1].imshow(table,aspect='auto',origin='lower',vmin=-1,vmax=1,cmap='RdBu_r',interpolation='nearest')
+        axes[p-1].set_xticks(range(len(names)),names,rotation=65,ha='right')
+        axes[p-1].set_yticks(range(len(channels)),channels,fontsize=7)
+        axes[p-1].set_title(f'Position {p}')
+    fig.suptitle('Per-electrode waveform-deviation trace repeatability\nMedian participant split-half r, 100–500 ms; descriptive')
+    fig.subplots_adjust(top=.93,bottom=.13,left=.07,right=.87,wspace=.12)
+    fig.colorbar(im,cax=fig.add_axes([.91,.25,.02,.5]),label='Pearson r')
+    path = out/'electrode_repeatability.png'
+    fig.savefig(path,dpi=140)
+    plt.close(fig)
+    figures.append(path)
+
+    lines = ['# Task 4 multiscale EEG response diagnostics','',
+        f'Completed {len(subjects)} / {len(config["subjects"])} planned participants. Errors: {status["errors"] or "none"}.',
+        f'Retained {sum(a["n_events"] for a in audits)} epochs. ICA refitted: no. '
+        'Classification and true temporal scale invariance were not tested.','',
+        '## Questions and fixed design','',
+        'Do Gaussian derivatives expose more repeatable waveform-specific dynamics than the fixed '
+        '25-ms local-linear slope? Do different smoothing scales expose response structure? '
+        'Difference-of-Gaussians is an optional secondary band-pass representation, not an EEG slope.','',
+        'Temporal Gaussian σ = 5, 10, 20 ms; ±4σ truncated kernels. First derivatives are calibrated '
+        'on a unit ramp and expressed in µV/s. Smoothed voltage and signed DoG(5,10)/DoG(10,20) '
+        'retain µV units. A full-resolution scale-space is used; no time downsampling or '
+        'scale-invariant pooling. Original voltage and 25-ms slope are matched references.','',
+        'All representations use 100–500 ms for trace comparisons and fixed post windows '
+        '100–200, 200–350, 350–500 ms; the pre diagnostic is −250 to −100 ms. '
+        'Epoch padding is −400 to +650 ms, with baseline −250 to −50 ms. '
+        'At the largest σ the first post sample uses +20 ms onward, beyond the explicit '
+        '−2 to +10-ms interpolation. The prior filtering can still spread stimulation artifacts.','',
+        'Reused ICA files must match original numerical source, dependencies, inputs, channels and '
+        'exclusions. Reconstructed prior features and QC flags must match before processing. '
+        f'Maximum absolute prior-feature reconstruction error: '
+        f'{max(r["original_feature_max_absolute_error"] for r in reconstruction):.3g}. '
+        f'Additional event exclusions for expanded padding: '
+        f'{sum(r["n_extra_padding_exclusions"] for r in reconstruction)}.','',
+        '## Context-adjusted response features','',
+        'Mean and per-trial RMS are computed for every representation/window/electrode. '
+        'Participant regressions include comparison intercepts, within-comparison elapsed time, '
+        'waveform, position, and interaction. Exact participant sign flips require symmetric '
+        'coefficient errors and independent participants. Max-stat correction spans ALL operators, '
+        'scales, mean/RMS summaries, four windows and 62 channels; a further factor of three '
+        'covers waveform/position/interaction. These are model-conditional exploratory tests.','',
+        '| Effect | Corrected p ≤ .05 | Smallest corrected p |','| --- | --- | --- |']
+    if not tests.empty:
+        for effect,g in tests.groupby('effect'):
+            lines.append(f'| {effect} | {int((g.p_fwer <= .05).sum())} / {len(g)} | {g.p_fwer.min():.4f} |')
+    else:
+        lines.append('| Not evaluated | Fewer than three participants | — |')
+    lines += ['', '## Matched split-half repeatability','',
+        'The same 100 splits are used for all representations. Complete pairs stay together; '
+        'splits are within ordered comparisons. Singleton ordered cells are omitted only here. '
+        'Each observed comparison receives equal weight. Correlate electrode × time patterns '
+        'for the common response and five-waveform deviations from that common response. '
+        'Repeated splits are dependent; summarize each participant first, then take the group median.','',
+        '| Representation | Position | Common response r | Waveform deviations r |',
+        '| --- | --- | --- | --- |']
+    for name in names:
+        for p in (1,2):
+            row = summary[(summary.representation == name) & (summary.position == p)].iloc[0]
+            lines.append(f'| {name} | {p} | {row.common_response_r:.3f} | {row.waveform_deviation_r:.3f} |')
+    lines += ['', '## Paired Gaussian-derivative differences from the 25-ms reference','',
+        'Compute the difference of participant median waveform-deviation correlations on '
+        'identical trial splits/support, then take the group median. These are descriptive '
+        'differences, not significant improvement tests. The earlier 50–500-ms report uses '
+        'different time support and must not be substituted as this reference.','',
+        '| Representation | Position | Median paired Δr |','| --- | --- | --- |']
+    for row in delta.itertuples():
+        lines.append(f'| {row.representation} | {row.position} | {row.difference_from_slope25:+.3f} |')
+    lines += ['', '## Interpretation limits','',
+        '- Smoothing changes frequency weighting and temporal autocorrelation. A larger r alone '
+        'does not demonstrate new information, improved decoding or a neural source.',
+        '- Time × scale maps and differences are exploratory. No best scale, electrode or '
+        'time point is selected for a classifier from this full cohort.',
+        '- This is a multiscale representation; robustness to actual temporal stretching and '
+        'scale-invariant descriptors remain separate untested hypotheses.',
+        '- Full-recording ICA is reused for response description, not validated inductive '
+        'classifier preprocessing. Trigger-to-current timing and artifacts remain unresolved.',
+        '- Responses before +100 ms are outside these comparisons. Shared full-recording ICA, '
+        'filtering and comparison contexts can contribute dependence between trial halves; '
+        'this is a descriptive repeatability check, not independent replication.',
+        '- Missing orientations, expectation, prior stimulation and nonlinear drift can remain '
+        'despite comparison/time/position adjustments. A null test does not establish equivalence.',
+        '- Pre voltage features overlap the voltage baseline and are not a matched negative-control '
+        'classifier. Gaussian support avoids direct onset overlap but cannot undo earlier filter spread.','',
+        '## Figures','']
+    for path in figures:
+        lines += [f'![{path.stem}]({path.name})','']
+    (out/'RESULTS.md').write_text('\n'.join(lines)+'\n',encoding='utf-8')
+    images = ''.join(f'<figure><figcaption>{html.escape(p.stem)}</figcaption><img src="{p.name}" loading="lazy"></figure>' for p in figures)
+    (out/'index.html').write_text('<!doctype html><meta charset="utf-8"><title>Task 4 multiscale EEG</title>'
+        '<style>body{max-width:1200px;margin:30px auto;padding:0 20px;font:16px/1.5 system-ui}'
+        'pre{white-space:pre-wrap}img{max-width:100%}figure{margin:40px 0}</style><pre>'
+        +html.escape('\n'.join(lines[:lines.index('## Figures')]))+'</pre>'+images,encoding='utf-8')
+    sources = [Path(__file__),Path(__file__).with_name('analysis.py'),
+               Path('experiments/response_characterization/e002_electrode_position_slope/analysis.py')]
+    (out/'render_provenance.json').write_text(json.dumps({source.as_posix():
+        hashlib.sha256(source.read_bytes()).hexdigest() for source in sources},indent=2)+'\n')
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('output',type=Path)
+    render(parser.parse_args().output)

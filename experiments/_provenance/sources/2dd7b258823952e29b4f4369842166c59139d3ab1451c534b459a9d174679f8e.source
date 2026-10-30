@@ -1,0 +1,175 @@
+"""Fixed Gaussian representations, complete-pair repeatability and group tests."""
+import itertools
+import numpy as np
+import pandas as pd
+from scipy.ndimage import gaussian_filter1d
+from scipy.signal import savgol_filter
+from experiments.task4_response_diagnostics.analysis import t_squared
+
+SCALES_MS = (5., 10., 20.)
+WINDOWS = {'pre': (-.25, -.10), 'early': (.10, .20),
+           'middle': (.20, .35), 'late': (.35, .50)}
+TRUNCATE = 4.
+REPEATS = 100
+SEED = 20261023
+
+
+def specifications(include_dog=True):
+    specs = [dict(name='voltage', operator='voltage', unit='µV'),
+             dict(name='slope25', operator='local_slope', unit='µV/s')]
+    for sigma in SCALES_MS:
+        specs += [dict(name=f'gauss{sigma:g}', operator='gaussian', sigma_ms=sigma, unit='µV'),
+                  dict(name=f'deriv{sigma:g}', operator='gaussian_derivative', sigma_ms=sigma, unit='µV/s')]
+    if include_dog:
+        for lo, hi in zip(SCALES_MS[:-1], SCALES_MS[1:]):
+            specs.append(dict(name=f'dog{lo:g}_{hi:g}', operator='difference_of_gaussians',
+                              sigma_ms=lo, surround_ms=hi, unit='µV'))
+    return specs
+
+
+def transform(epochs_uv, sfreq, spec):
+    """Time-only filtering. Calibrate discrete first derivatives on a unit ramp."""
+    kind = spec['operator']
+    if kind == 'voltage':
+        return epochs_uv
+    if kind == 'local_slope':
+        width = max(3, int(round(.025*sfreq)) | 1)
+        return savgol_filter(epochs_uv, width, 1, deriv=1, delta=1/sfreq, axis=-1)
+    sigma = spec['sigma_ms']*sfreq/1000
+    if kind == 'gaussian_derivative':
+        radius = int(TRUNCATE*sigma+.5)
+        ramp = np.arange(-radius, radius+1, dtype=float)
+        gain = gaussian_filter1d(ramp, sigma, order=1, mode='constant',
+                                 truncate=TRUNCATE)[radius]
+        if gain <= 0:
+            raise ValueError('Derivative scale cannot resolve a unit ramp')
+        return gaussian_filter1d(epochs_uv, sigma, order=1, axis=-1,
+                                 truncate=TRUNCATE)*sfreq/gain
+    low = gaussian_filter1d(epochs_uv, sigma, axis=-1, truncate=TRUNCATE)
+    if kind == 'gaussian':
+        return low
+    if kind == 'difference_of_gaussians':
+        high = gaussian_filter1d(epochs_uv, spec['surround_ms']*sfreq/1000,
+                                 axis=-1, truncate=TRUNCATE)
+        return low-high
+    raise ValueError(f'Unknown operator {kind}')
+
+
+def validate_support(times, sfreq, specs):
+    """All reported samples avoid epoch edges and the explicit onset blank."""
+    for spec in specs:
+        if spec['operator'] == 'local_slope':
+            radius = (max(3, int(round(.025*sfreq)) | 1)//2)/sfreq
+        else:
+            sigma_ms = spec.get('surround_ms', spec.get('sigma_ms', 0.))
+            radius = int(TRUNCATE*sigma_ms*sfreq/1000+.5)/sfreq
+        for name, (lo, hi) in WINDOWS.items():
+            if lo-radius < times[0]-1e-9 or hi+radius > times[-1]+1e-9:
+                raise ValueError('Insufficient real epoch padding for Gaussian support')
+            if name == 'pre' and hi+radius >= -.002:
+                raise ValueError('Pre window reaches onset blank')
+            if name != 'pre' and lo-radius <= .010:
+                raise ValueError('Post window reaches onset blank')
+
+
+def window_features(values, times):
+    result = []
+    for lo, hi in WINDOWS.values():
+        x = values[:, :, (times >= lo) & (times < hi)]
+        result.append(np.stack([x.mean(axis=-1), np.sqrt((x*x).mean(axis=-1))], axis=1))
+    return np.stack(result, axis=2)  # trial x mean/RMS x window x channel
+
+
+def condition_weights(meta, keep=None):
+    """Linear equivalent of equal-observed-comparison condition means."""
+    if keep is None:
+        keep = np.ones(len(meta), bool)
+    weights = np.zeros((5, 2, len(meta)))
+    for wave in range(5):
+        for pos in (1, 2):
+            cells = list(meta[keep & (meta.trigger == wave+239) & (meta.position == pos)].groupby('comparison').groups.values())
+            if not cells:
+                raise ValueError(f'Missing waveform/position support: {wave+239}/{pos}')
+            for cell in cells:
+                indices = np.asarray(list(cell), int)
+                weights[wave,pos-1,indices] = 1/(len(cells)*len(indices))
+    return weights
+
+
+def split_weights(meta, repeats=REPEATS, seed=SEED):
+    first = meta[meta.position == 1]
+    groups = [g.pair_id.tolist() for _, g in first.groupby(['comparison','trigger']) if len(g) >= 2]
+    used = {pair for group in groups for pair in group}
+    rng = np.random.default_rng(seed)
+    weights = []
+    for _ in range(repeats):
+        left = set()
+        for group in groups:
+            order = rng.permutation(group)
+            left.update(order[:len(group)//2])
+        weights.append(np.stack([condition_weights(meta, meta.pair_id.isin(left).to_numpy()),
+                                 condition_weights(meta, meta.pair_id.isin(used-left).to_numpy())]))
+    return np.stack(weights), dict(n_pairs_used=len(used),
+        n_pairs_omitted=int(first.pair_id.nunique()-len(used)))
+
+
+def correlation(a, b):
+    a = a-a.mean(axis=-1, keepdims=True)
+    b = b-b.mean(axis=-1, keepdims=True)
+    denominator = np.sqrt((a*a).sum(axis=-1)*(b*b).sum(axis=-1))
+    return np.divide((a*b).sum(axis=-1), denominator,
+                     out=np.full(denominator.shape, np.nan), where=denominator > 1e-12)
+
+
+def repeatability(values, times, weights, channels, name, batch=5):
+    """Matched splits for every representation, plus channel-specific checks."""
+    mask = (times >= .10) & (times < .50)
+    flat = np.ascontiguousarray(values[:,:,mask]).reshape(len(values), -1)
+    rows, electrode = [], []
+    for start in range(0, len(weights), batch):
+        w = weights[start:start+batch]
+        halves = (w.reshape(-1,len(values))@flat).reshape(len(w),2,5,2,len(channels),-1)
+        common = halves.mean(axis=2)
+        deviations = halves-common[:,:,None]
+        common_r = correlation(common[:,0].reshape(len(w),2,-1), common[:,1].reshape(len(w),2,-1))
+        dev_a = deviations[:,0].transpose(0,2,1,3,4).reshape(len(w),2,-1)
+        dev_b = deviations[:,1].transpose(0,2,1,3,4).reshape(len(w),2,-1)
+        dev_r = correlation(dev_a,dev_b)
+        ea = deviations[:,0].transpose(0,2,3,1,4).reshape(len(w),2,len(channels),-1)
+        eb = deviations[:,1].transpose(0,2,3,1,4).reshape(len(w),2,len(channels),-1)
+        electrode.append(correlation(ea,eb))
+        for i in range(len(w)):
+            for pos in range(2):
+                rows.append(dict(repeat=start+i, representation=name, position=pos+1,
+                    common_response_r=common_r[i,pos], waveform_deviation_r=dev_r[i,pos]))
+    medians = np.nanmedian(np.concatenate(electrode),axis=0)
+    channel_rows = [dict(representation=name, position=p+1, channel=ch,
+                        waveform_deviation_r=medians[p,c])
+                    for p in range(2) for c,ch in enumerate(channels)]
+    return pd.DataFrame(rows), pd.DataFrame(channel_rows)
+
+
+def group_tests(effects, channels, metrics):
+    """One max-stat family spans all scales/operators/summaries/windows/channels."""
+    n = len(effects)
+    if not 3 <= n <= 16:
+        raise ValueError('Need 3-16 independent participants')
+    signs = np.array(list(itertools.product([-1.,1.],repeat=n)))
+    rows = []
+    for family in ('waveform','position','interaction'):
+        coefs = np.stack([item[family] for item in effects])
+        observed = t_squared(coefs)
+        exceed = np.zeros_like(observed, dtype=int)
+        maxima = np.zeros_like(observed, dtype=int)
+        for sign in signs:
+            null = t_squared(coefs*sign.reshape(n,1,1,1,1))
+            exceed += null >= observed-1e-10
+            maxima += null.max() >= observed-1e-10
+        for m,metric in enumerate(metrics):
+            for w,window in enumerate(WINDOWS):
+                for c,channel in enumerate(channels):
+                    rows.append(dict(effect=family,metric=metric,window=window,channel=channel,
+                        statistic=float(observed[m,w,c]), p_uncorrected=exceed[m,w,c]/len(signs),
+                        p_max_family=maxima[m,w,c]/len(signs),
+                        p_fwer=min(1.,3*maxima[m,w,c]/len(signs)), n_subjects=n))
+    return pd.DataFrame(rows)

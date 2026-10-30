@@ -1,0 +1,196 @@
+{
+  "updated": "2026-10-30",
+  "id_policy": "Stable project-wide IDs; never renumber or reuse. Run dates are separate from experiment IDs.",
+  "experiments": [
+    {
+      "id": "E001",
+      "title": "Sensor-space voltage baseline",
+      "category": "waveform_decoding",
+      "dataset": "Task 4",
+      "status": "Completed",
+      "package": "experiments/waveform_decoding/e001_voltage_baseline",
+      "reserved_package": "experiments/waveform_decoding/e001_voltage_baseline",
+      "last_completed_run": "2026-10-16",
+      "findings": "Docs/BASELINE_RESULTS.md",
+      "canonical_outputs": [
+        "output/task4_baseline"
+      ],
+      "legacy_package": "experiments/task4_baseline"
+    },
+    {
+      "id": "E002",
+      "title": "Electrode, presentation-position and EEG-slope responses",
+      "category": "response_characterization",
+      "dataset": "Task 4",
+      "status": "Completed",
+      "package": "experiments/response_characterization/e002_electrode_position_slope",
+      "reserved_package": "experiments/response_characterization/e002_electrode_position_slope",
+      "last_completed_run": "2026-10-21",
+      "findings": "Docs/TASK4_RESPONSE_DIAGNOSTICS.md",
+      "canonical_outputs": [
+        "output/task4_response_diagnostics_final_20261021"
+      ],
+      "legacy_package": "experiments/task4_response_diagnostics"
+    },
+    {
+      "id": "E003",
+      "title": "Voltage feature audit",
+      "category": "signal_quality",
+      "dataset": "Task 4",
+      "status": "Completed",
+      "package": "experiments/signal_quality/e003_voltage_feature_audit",
+      "reserved_package": "experiments/signal_quality/e003_voltage_feature_audit",
+      "last_completed_run": "2026-10-23",
+      "findings": "Docs/TASK4_FEATURE_AUDIT.md",
+      "canonical_outputs": [
+        "output/task4_feature_audit_final_20261023"
+      ],
+      "legacy_package": "experiments/task4_feature_audit"
+    },
+    {
+      "id": "E004",
+      "title": "Waveform decoding with xDAWN spatial features",
+      "category": "waveform_decoding",
+      "dataset": "Task 4",
+      "status": "Completed",
+      "package": "experiments/waveform_decoding/e004_xdawn_decoding",
+      "reserved_package": "experiments/waveform_decoding/e004_xdawn_decoding",
+      "last_completed_run": "2026-10-23",
+      "findings": "Docs/TASK4_XDAWN_RESULTS.md",
+      "canonical_outputs": [
+        "output/task4_xdawn_20261023"
+      ],
+      "legacy_package": "experiments/task4_xdawn"
+    },
+    {
+      "id": "E005",
+      "title": "Waveform decoding with spectral and combined features",
+      "category": "waveform_decoding",
+      "dataset": "Task 4",
+      "status": "Completed",
+      "package": "experiments/waveform_decoding/e005_spectral_decoding",
+      "reserved_package": "experiments/waveform_decoding/e005_spectral_decoding",
+      "last_completed_run": "2026-10-23",
+      "findings": "Docs/TASK4_SPECTRAL_RESULTS.md",
+      "canonical_outputs": [
+        "output/task4_spectral_complete_20261023"
+      ],
+      "legacy_package": "experiments/task4_spectral"
+    },
+    {
+      "id": "E006",
+      "title": "Multiscale EEG response characterization",
+      "category": "response_characterization",
+      "dataset": "Task 4",
+      "status": "Completed",
+      "package": "experiments/response_characterization/e006_multiscale_responses",
+      "reserved_package": "experiments/response_characterization/e006_multiscale_responses",
+      "last_completed_run": "2026-10-23",
+      "findings": "Docs/TASK4_MULTISCALE_RESULTS.md",
+      "canonical_outputs": [
+        "output/task4_multiscale_20261023"
+      ],
+      "legacy_package": "experiments/task4_multiscale"
+    },
+    {
+      "id": "E007",
+      "title": "Minimal versus supplied preprocessing comparison",
+      "category": "signal_quality",
+      "dataset": "Task 4",
+      "status": "Completed",
+      "package": "experiments/signal_quality/e007_preprocessing_comparison",
+      "reserved_package": "experiments/signal_quality/e007_preprocessing_comparison",
+      "last_completed_run": "2026-10-23",
+      "findings": "Docs/TASK4_PREPROCESSING_COMPARISON.md",
+      "canonical_outputs": [
+        "output/task4_preprocessing_comparison_final_20261023"
+      ],
+      "legacy_package": "experiments/task4_preprocessing_comparison"
+    },
+    {
+      "id": "E008",
+      "title": "Time-resolved waveform, position and interaction effects",
+      "category": "response_characterization",
+      "dataset": "Task 4",
+      "status": "Completed",
+      "package": "experiments/response_characterization/e008_time_resolved_effects",
+      "reserved_package": "experiments/response_characterization/e008_time_resolved_effects",
+      "last_completed_run": "2026-10-23",
+      "findings": "Docs/TASK4_TIME_RESOLVED_RESULTS.md",
+      "canonical_outputs": [
+        "output/task4_time_resolved_20261023"
+      ],
+      "legacy_package": "experiments/task4_time_resolved"
+    },
+    {
+      "id": "E009",
+      "title": "Response uncertainty, earlier time coverage and sensitivity",
+      "category": "uncertainty_and_sensitivity",
+      "dataset": "Task 4",
+      "status": "Completed",
+      "package": "experiments/uncertainty_and_sensitivity/e009_response_uncertainty_sensitivity",
+      "reserved_package": "experiments/uncertainty_and_sensitivity/e009_response_uncertainty_sensitivity",
+      "last_completed_run": "2026-10-24",
+      "findings": "Docs/TASK4_RESPONSE_FOLLOWUP.md",
+      "canonical_outputs": [
+        "output/task4_response_followup_20261023",
+        "output/task4_response_sensitivity_final_20261023"
+      ],
+      "legacy_package": "experiments/task4_response_followup"
+    },
+    {
+      "id": "E010",
+      "title": "Simple-pipeline EEG visual inspection",
+      "category": "signal_quality",
+      "dataset": "Task 4",
+      "status": "Completed",
+      "package": "experiments/signal_quality/e010_simple_visual_inspection",
+      "reserved_package": "experiments/signal_quality/e010_simple_visual_inspection",
+      "last_completed_run": "2026-10-30",
+      "findings": "Docs/TASK4_VISUAL_INSPECTION.md",
+      "canonical_outputs": [
+        "output/task4_visual_inspection_20261030"
+      ],
+      "legacy_package": "experiments/task4_visual_inspection"
+    },
+    {
+      "id": "E011",
+      "title": "Electrode-by-time-bin waveform repeatability",
+      "category": "response_characterization",
+      "dataset": "Task 4",
+      "status": "Planned",
+      "package": null,
+      "reserved_package": "experiments/response_characterization/e011_electrode_bin_repeatability",
+      "last_completed_run": null,
+      "findings": null,
+      "canonical_outputs": [],
+      "legacy_package": null
+    },
+    {
+      "id": "E012",
+      "title": "Within-participant inference and early/later waveform decoding",
+      "category": "waveform_decoding",
+      "dataset": "Task 4",
+      "status": "Planned",
+      "package": null,
+      "reserved_package": "experiments/waveform_decoding/e012_temporal_waveform_decoding",
+      "last_completed_run": null,
+      "findings": null,
+      "canonical_outputs": [],
+      "legacy_package": null
+    },
+    {
+      "id": "E013",
+      "title": "Classifier sensitivity to known EEG patterns",
+      "category": "uncertainty_and_sensitivity",
+      "dataset": "Task 4",
+      "status": "Planned",
+      "package": null,
+      "reserved_package": "experiments/uncertainty_and_sensitivity/e013_classifier_sensitivity",
+      "last_completed_run": null,
+      "findings": null,
+      "canonical_outputs": [],
+      "legacy_package": null
+    }
+  ]
+}

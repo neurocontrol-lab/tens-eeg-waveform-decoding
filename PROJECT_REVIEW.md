@@ -4,7 +4,7 @@ Reviewed 9 October 2026. Scope: email attachment, motivation paper, procedures, 
 
 Updated 13 October 2026 with Jason Whitson's clarification supplied in the email thread. His trigger table resolves the ramp identity, Task 4 stopping rule, and subject 2 exclusion. Full confirmed protocol, planned baseline, and remaining audit questions: [experiment clarifications](Docs/EXPERIMENT_CLARIFICATIONS.md).
 
-Implementation update 16 October 2026: a separate [Task 4 baseline](experiments/task4_baseline/README.md) now runs from XDF with debounced triggers, strict CSV alignment, fixed mean-amplitude features, shrinkage LDA, comparison-grouped within-participant validation, and optional leave-one-subject-out evaluation. It includes pre-stimulus, late-window, onset, and order/history controls plus restricted permutations. This does not validate the historical ICA/source pipeline. Participant outputs remain local under ignored `output/` directories. On 20 October the package moved into the central `experiments/` directory; saved run provenance remains unchanged.
+Implementation update 16 October 2026: a separate [Task 4 baseline](experiments/waveform_decoding/e001_voltage_baseline/README.md) now runs from XDF with debounced triggers, strict CSV alignment, fixed mean-amplitude features, shrinkage LDA, comparison-grouped within-participant validation, and optional leave-one-subject-out evaluation. It includes pre-stimulus, late-window, onset, and order/history controls plus restricted permutations. This does not validate the historical ICA/source pipeline. Participant outputs remain local under ignored `output/` directories. On 20 October the package moved into the central `experiments/` directory; saved run provenance remains unchanged.
 
 ## Objective
 
