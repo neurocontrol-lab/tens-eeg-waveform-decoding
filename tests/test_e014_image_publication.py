@@ -2,7 +2,35 @@
 import numpy as np
 from PIL import Image
 from experiments.response_characterization.e014_all_electrode_repeatability.image_report import (
-    raster, ROW, BG, image, save_image, PALETTE)
+    raster, ROW, BG, image, save_image, PALETTE, GALLERY_HEADER, finish)
+
+
+def test_gallery_links_resolve_in_htmlpreview_and_downloaded_copy(tmp_path):
+    import re
+    from html.parser import HTMLParser
+    from urllib.parse import urljoin
+
+    image_path='images/3_voltage_mean_50_specific_wave0_maps.webp'
+    finish(tmp_path,{},[GALLERY_HEADER,f'<a href="{image_path}">Maps</a>'],
+           dict(images=1,image_bytes=100,seconds=0))
+    gallery=(tmp_path/'gallery.html').read_text(encoding='utf-8')
+    raw='https://raw.githubusercontent.com/neurocontrol-lab/tens-eeg-waveform-decoding/main/Docs/Reports/E014/gallery.html'
+    # HTMLPreview's loader inserts its base into an explicit head element.
+    preview=re.sub(r'<head([^>]*)>',lambda m:m[0]+f'<base href="{raw}">',gallery,count=1,flags=re.I)
+
+    class Links(HTMLParser):
+        def __init__(self):
+            super().__init__();self.base=None;self.links=[]
+        def handle_starttag(self,tag,attrs):
+            attrs=dict(attrs)
+            if tag=='base':self.base=attrs['href']
+            if tag=='a':self.links.append(attrs['href'])
+
+    links=Links();links.feed(preview)
+    assert links.base==raw
+    assert urljoin(links.base,links.links[-1])==raw.rsplit('/',1)[0]+'/'+image_path
+    assert urljoin((tmp_path/'gallery.html').as_uri(),image_path)==(tmp_path/image_path).as_uri()
+    assert gallery.endswith('</body></html>')
 
 
 def test_display_raster_retains_gaps_and_spectral_centre_support():

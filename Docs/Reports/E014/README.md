@@ -2,6 +2,8 @@
 
 [Open the interactive report online](https://htmlpreview.github.io/?https://github.com/neurocontrol-lab/tens-eeg-waveform-decoding/blob/main/Docs/Reports/E014/index.html) using HTMLPreview.
 
+[Open the static gallery online](https://htmlpreview.github.io/?https://github.com/neurocontrol-lab/tens-eeg-waveform-decoding/blob/main/Docs/Reports/E014/gallery.html). Both pages include an explicit HTML head so HTMLPreview can resolve companion image links against the report directory. Relative links also work when the folder is downloaded or hosted directly.
+
 Open index.html for the image explorer, or gallery.html for script-free direct image links. Keep the images/ directory beside both pages when copying or hosting this folder. All participant, waveform, first/second presentation, representation, bin and electrode/component choices are preserved. The page crops pre-rendered image sheets; it does not fetch numerical map arrays or trial EEG. Tiny joint-correlation/support summaries remain embedded in HTML.
 
 Images use a fixed display raster and discrete palette, then lossless WebP compression. Images cannot provide exact numeric readout at arbitrary samples. Native bin widths and full-precision estimates remain in the separate local numerical report. Statistics are not recomputed or selected for this edition. See the expandable methods in index.html and source/image digests in manifest.json.

@@ -130,6 +130,9 @@ def save_image(im,path):
     im.convert('RGB').save(path,format='WEBP',lossless=True,method=3)
 
 
+GALLERY_HEADER='<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>E014 static image gallery</title><style>body{font:15px system-ui;max-width:1100px;margin:30px auto;padding:15px}td,th{padding:7px;border-bottom:1px solid #ddd}a{color:#075a9a}</style></head><body><h1>E014 static image gallery</h1><p><a href="index.html">Open image explorer</a>. No scripts are required on this page. Each map sheet contains all four metrics, first/second presentation and all electrodes/components; each curve sheet contains all electrodes/components. Maps and curves preserve separate waveforms.</p>'
+
+
 PAGE=r'''<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>E014 — Image report</title><style>
@@ -185,7 +188,7 @@ def export(source,destination,subjects=None,representations=None,widths=None):
         source_config_sha256=sha(source/'config.json'),renderer_sha256=sha(Path(__file__)),
         lossless_pixel_compression=True,rendering='Fixed pixel raster and discrete color palette; no statistical recomputation',
         source_arrays={},files={})
-    gallery=['<!doctype html><html lang="en"><meta charset="utf-8"><title>E014 static image gallery</title><style>body{font:15px system-ui;max-width:1100px;margin:30px auto;padding:15px}td,th{padding:7px;border-bottom:1px solid #ddd}a{color:#075a9a}</style><h1>E014 static image gallery</h1><p><a href="index.html">Open image explorer</a>. No scripts are required on this page. Each map sheet contains all four metrics, first/second presentation and all electrodes/components; each curve sheet contains all electrodes/components. Maps and curves preserve separate waveforms.</p>']
+    gallery=[GALLERY_HEADER]
     started=time.perf_counter()
     # Small support metadata are read once per representation/participant, without
     # copying the large browser payload into the publication.
@@ -237,7 +240,7 @@ def export(source,destination,subjects=None,representations=None,widths=None):
 def finish(destination,catalog,gallery,manifest):
     page=PAGE.replace('__CATALOG__',json.dumps(catalog,allow_nan=False,separators=(',',':'))).replace('__METRIC_LABELS__',json.dumps(METRIC_LABELS))
     (destination/'index.html').write_text(page,encoding='utf-8')
-    (destination/'gallery.html').write_text('\n'.join(gallery)+'</html>',encoding='utf-8')
+    (destination/'gallery.html').write_text('\n'.join(gallery)+'</body></html>',encoding='utf-8')
     (destination/'manifest.json').write_text(json.dumps(manifest,indent=2)+'\n',encoding='utf-8')
     (destination/'README.md').write_text('# E014 image publication\n\nOpen index.html for the image explorer, or gallery.html for script-free direct image links. Keep the images/ directory beside both pages when copying or hosting this folder. All participant, waveform, first/second presentation, representation, bin and electrode/component choices are preserved. The page crops pre-rendered image sheets; it does not fetch numerical map arrays or trial EEG. Tiny joint-correlation/support summaries remain embedded in HTML.\n\nImages use a fixed display raster and discrete palette, then lossless WebP compression. Images cannot provide exact numeric readout at arbitrary samples. Native bin widths and full-precision estimates remain in the separate local numerical report. Statistics are not recomputed or selected for this edition. See the expandable methods in index.html and source/image digests in manifest.json.\n\nRegenerate from the project root with:\n\n```powershell\n& ./.venv/Scripts/python.exe -m experiments.response_characterization.e014_all_electrode_repeatability.image_report --output Docs/Reports/E014\n```\n\nChoose a fresh output path for regeneration; existing publications are not overwritten. This folder is Git-trackable; the large output/e014_repeatability_20261030 numerical payloads remain ignored. No deployment is performed by exporting.\n',encoding='utf-8')
     print(json.dumps({k:manifest[k] for k in ['images','image_bytes','seconds']},indent=2),flush=True)
