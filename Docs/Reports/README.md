@@ -15,7 +15,9 @@
 
 E015 and E016 are **self-contained HTML files**, each smaller than 1 MB. They embed
 their figures and summary-table downloads and need no companion files or JavaScript
-libraries. They contain summary statistics, not raw EEG, trial-level prediction
+library downloads. E015 embeds the MIT-licensed markdown-it renderer so the full
+methods and findings display as formatted Markdown, including tables and links,
+while remaining usable offline. They contain summary statistics, not raw EEG, trial-level prediction
 tables or fitted models. Rebuild them with `python -m experiments.publish_decoding_reports`
 after regenerating the local numerical summaries. The publication manifest records
 the source and embedded-asset hashes.

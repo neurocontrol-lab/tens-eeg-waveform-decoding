@@ -12,6 +12,7 @@ import matplotlib.pyplot as plt
 from experiments.waveform_decoding.e001_voltage_baseline.evaluate import scores
 from experiments.response_characterization.e011_electrode_bin_repeatability.__main__ import sha,write_json
 from .confusion import prepare_confusions
+from experiments.report_markdown import markdown_details,markdown_support
 
 
 def load_checked(root):
@@ -165,7 +166,7 @@ def render(strict,exploratory,output,replace_report=False):
     body+='<h2>Individual models</h2>'+individual.to_html(index=False,border=0)
     body+=confusion_html
     body+='<h2>Reliability flags</h2><p>All exploratory rows lack independent xDAWN calibration and use observed, not regression-adjusted, class profiles. Participant 12 P1 also has a fold with no Square training examples. Missing classes receive zero predicted probability; their held-out errors remain in the five-class score. Full diagnostics remain in the saved fold JSONs.</p>'
-    body+='<details><summary>Complete methods and findings</summary><pre style="white-space:pre-wrap">'+html.escape(markdown)+'</pre></details>'
+    body+=markdown_details('Complete methods and findings',markdown)
     selector_intro='''<section aria-labelledby="feature-selection-title" style="background:#f2f6fa;padding:18px;border-radius:8px;margin:18px 0">
 <h2 id="feature-selection-title" style="margin-top:0">What do the two feature-selection methods mean?</h2>
 <p>Both methods choose <b>100 scalar features</b> from the same candidate pool: voltage, slope, curvature, alpha/beta power and xDAWN amplitudes. A feature is one measurement, such as mean C3 voltage in a particular time bin. The selected features then enter the <b>same shrinkage-LDA classifier</b>.</p>
@@ -175,6 +176,7 @@ def render(strict,exploratory,output,replace_report=False):
 </section>'''
     page='<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>E015 observed decoding</title><style>body{font:15px system-ui;max-width:1200px;margin:25px auto;padding:20px;color:#172437}img{width:100%;height:auto}pre{font:14px system-ui;line-height:1.6}table{border-collapse:collapse;width:100%;margin:15px 0}td,th{padding:8px;text-align:left;border-bottom:1px solid #ddd}summary{cursor:pointer;font-weight:600}</style><h1>E015 observed decoding</h1><p>Strict and unreliable exploratory cases are reported separately. No permutation inference.</p><img src="figures/observed_accuracy.png" alt="Held-out balanced accuracy by participant and position">'+body+'</html>'
     page=page.replace('<img src=',selector_intro+'<img src=',1)
+    page=page.replace('</html>',markdown_support()+'</html>')
     (output/'index.html').write_text(page,encoding='utf-8')
     write_json(output/'verification.json',dict(strict_models=11,exploratory_models=20,
         strict_folds=fold_count['strict'],exploratory_folds=fold_count['exploratory'],

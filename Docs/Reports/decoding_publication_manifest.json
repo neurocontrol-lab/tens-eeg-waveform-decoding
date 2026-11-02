@@ -1,9 +1,9 @@
 {
   "E015": {
     "source": "output\\e015_observed_summary_20261102",
-    "source_html_sha256": "49c72aeedb3c141fb924b5f18ec41b8ac3eabe1acd6f62e7376a127258183e51",
-    "publication_sha256": "2bbee30be39351ce7a46a3601949fd54ca879b9b4c1caf3cf3fcc39b369d91fd",
-    "publication_bytes": 436871,
+    "source_html_sha256": "e6a7b088583d0c0753eb4a41d413a5ae1840c7b53393c00480aed48d344968c5",
+    "publication_sha256": "36274880512557fb80da58409df75e3c2db04b5aee418b898bdbfe48b3abe301",
+    "publication_bytes": 540759,
     "embedded_assets": {
       "figures/observed_accuracy.png": {
         "bytes": 143544,

@@ -7,3 +7,6 @@
 .gitattributes text eol=lf
 # Preserve historical Python source bytes for SHA256 provenance checks.
 experiments/_provenance/sources/*.source -text
+# Preserve verified upstream Markdown renderer bytes and license.
+experiments/report_assets/markdown_it/markdown-it.umd.min.js -text
+experiments/report_assets/markdown_it/LICENSE -text
