@@ -2,7 +2,7 @@
 
 Experiments have stable project-wide IDs, descriptive package names and physical category folders. Task/cohort information belongs in metadata and each run guide. Run all commands from the repository root.
 
-**Updated: 2026-10-30.** 12 completed, 2 planned. Completed means the specified analysis finished; it does not imply a positive scientific result.
+**Updated: 2026-11-02.** 12 completed, 2 planned, 2 in progress. Completed means the specified analysis finished; it does not imply a positive scientific result.
 
 ## Status of completed and planned experiments
 
@@ -22,6 +22,8 @@ Experiments have stable project-wide IDs, descriptive package names and physical
 | E012 | Longer-window waveform decoding with LDA, RBF SVM and EEGNet | waveform decoding | Task 4 | Planned | - | - |
 | E013 | Classifier sensitivity to known EEG patterns | uncertainty and sensitivity | Task 4 | Planned | - | - |
 | E014 | [All-electrode, alpha/beta power and calibrated xDAWN repeatability](response_characterization/e014_all_electrode_repeatability/README.md) | response characterization | Task 4 | Completed | 2026-10-30 | [Results](../Docs/E014_REPEATABILITY_RESULTS.md) |
+| E015 | [Position-specific multiscale repeatability-selected decoding](waveform_decoding/e015_position_repeatability_decoding/README.md) | waveform decoding | Task 4 | In progress | 2026-11-02 | [Results](../Docs/E015_OBSERVED_RESULTS.md) |
+| E016 | [One-versus-rest waveform detection on fixed E015 features](waveform_decoding/e016_one_vs_rest_decoding/README.md) | waveform decoding | Task 4 | In progress | 2026-11-02 | [Results](../Docs/E016_BINARY_RESULTS.md) |
 
 Planned IDs are reserved; no empty executable packages or results are created for them. Use Planned, In progress, Completed, Blocked or Superseded. Use Scheduled only when an execution has an actual schedule. Status labels do not start jobs or recurring automations.
 
@@ -53,6 +55,8 @@ Can EEG features predict the delivered waveform on held-out data?
 - **E004** - Waveform decoding with xDAWN spatial features (completed).
 - **E005** - Waveform decoding with spectral and combined features (completed).
 - **E012** - Longer-window waveform decoding with LDA, RBF SVM and EEGNet (planned).
+- **E015** - Position-specific multiscale repeatability-selected decoding (in progress).
+- **E016** - One-versus-rest waveform detection on fixed E015 features (in progress).
 
 ### [Uncertainty and sensitivity](uncertainty_and_sensitivity/README.md)
 

@@ -12,6 +12,15 @@ Explore waveform repeatability by participant, first/second presentation, electr
 
 Interactive reports are the main entry point for inspecting individual response patterns. The [experiment registry](experiments/README.md) links analysis-specific findings, methods, run guides, and status.
 
+Latest decoding: [E016 binary waveform detectors](Docs/E016_BINARY_RESULTS.md)
+compares 100 position-specific waveform-versus-rest detectors on the fixed E015
+top-100 features, with 55 strict-reference detectors and an audit of AUC aggregation.
+
+**Decoding reports:** [E015 multiclass and confusion matrices](https://htmlpreview.github.io/?https://github.com/neurocontrol-lab/tens-eeg-waveform-decoding/blob/main/Docs/Reports/E015/index.html)
+· [E016 binary detectors](https://htmlpreview.github.io/?https://github.com/neurocontrol-lab/tens-eeg-waveform-decoding/blob/main/Docs/Reports/E016/index.html)
+· [Waveform and participant comparison](Docs/E015_E016_SUBGROUP_FINDINGS.md).
+Both decoding reports are self-contained pages smaller than 1 MB.
+
 ## Research areas
 
 | Area | Main question |

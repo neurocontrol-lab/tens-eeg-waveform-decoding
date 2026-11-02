@@ -1,0 +1,66 @@
+{
+  "E015": {
+    "source": "output\\e015_observed_summary_20261102",
+    "source_html_sha256": "49c72aeedb3c141fb924b5f18ec41b8ac3eabe1acd6f62e7376a127258183e51",
+    "publication_sha256": "2bbee30be39351ce7a46a3601949fd54ca879b9b4c1caf3cf3fcc39b369d91fd",
+    "publication_bytes": 436871,
+    "embedded_assets": {
+      "figures/observed_accuracy.png": {
+        "bytes": 143544,
+        "sha256": "f1db7da99495e5bc9ebc4619e5f895fc2c0a754fc2b8e7063826235bc7aa0f49"
+      },
+      "class_recall.csv": {
+        "bytes": 17645,
+        "sha256": "a9d334c722e9a74e32bfaf0b5a64d46a5e7349eafd15d9a47204bb984106aa34"
+      },
+      "class_recall_summary.csv": {
+        "bytes": 3331,
+        "sha256": "6c340aff372666d029ab5e8d45fe3bf900ba816c693593258914275a1bdf7477"
+      },
+      "confusion_matrices.json": {
+        "bytes": 110568,
+        "sha256": "faeb6e11035fa4d715844ab49c3d2306c6a0201304ea3a5cd87efd4c37e3eb23"
+      }
+    },
+    "preview": "https://htmlpreview.github.io/?https://github.com/neurocontrol-lab/tens-eeg-waveform-decoding/blob/main/Docs/Reports/E015/index.html",
+    "raw_eeg_included": false,
+    "trial_predictions_included": false,
+    "fitted_models_included": false
+  },
+  "E016": {
+    "source": "output\\e016_binary_summary_20261102",
+    "source_html_sha256": "2dc55d0d688c75a68bf14ad234db0a96011fea6ae9ec5e60202b4b7833370c2c",
+    "publication_sha256": "3830f9728d6ac5477de05bdd424c0cae3b47e5b06be411fec497f133ecfede0c",
+    "publication_bytes": 829315,
+    "embedded_assets": {
+      "exploratory.png": {
+        "bytes": 280899,
+        "sha256": "a344770ddc3436401fa8d944a7c13db56f25ca9ee52d52f85be3bdd971b2ee0a"
+      },
+      "strict.png": {
+        "bytes": 203094,
+        "sha256": "cdeeb946272bd855ec9636377186b0c211243b0c8ff76907153061b030528641"
+      },
+      "detectors.csv": {
+        "bytes": 38852,
+        "sha256": "48891b6b2d7a0edad58dc6cb6ed45b76e1a5bf09ef44e7b19bd363ede096bba0"
+      },
+      "position_summary.csv": {
+        "bytes": 755,
+        "sha256": "506d430bde708628aa92f449c9e2749560d7c55a3dfbb5c595af603b09793ce1"
+      },
+      "waveform_summary.csv": {
+        "bytes": 3617,
+        "sha256": "5bfca60c3e1ca5ab29d1fe45c5d43d9828319b23f2b0ac77bcf2c04653dd8109"
+      },
+      "verification.json": {
+        "bytes": 648,
+        "sha256": "94bb828a85c4facb6789d0a71dc1fd72e900901985f0f42d2b910bc5313a2d5f"
+      }
+    },
+    "preview": "https://htmlpreview.github.io/?https://github.com/neurocontrol-lab/tens-eeg-waveform-decoding/blob/main/Docs/Reports/E016/index.html",
+    "raw_eeg_included": false,
+    "trial_predictions_included": false,
+    "fitted_models_included": false
+  }
+}

@@ -1,5 +1,5 @@
 {
-  "updated": "2026-10-30",
+  "updated": "2026-11-02",
   "id_policy": "Stable project-wide IDs; never renumber or reuse. Run dates are separate from experiment IDs.",
   "experiments": [
     {
@@ -304,6 +304,71 @@
         "power": "500-ms Hann windows, 50-ms step; not millisecond power estimates"
       },
       "publication": "Docs/Reports/E014/index.html"
+    },
+    {
+      "id": "E015",
+      "title": "Position-specific multiscale repeatability-selected decoding",
+      "category": "waveform_decoding",
+      "dataset": "Task 4",
+      "status": "In progress",
+      "package": "experiments/waveform_decoding/e015_position_repeatability_decoding",
+      "reserved_package": "experiments/waveform_decoding/e015_position_repeatability_decoding",
+      "last_completed_run": "2026-11-02",
+      "findings": "Docs/E015_OBSERVED_RESULTS.md",
+      "canonical_outputs": [
+        "output/e015_feature_cache_20261102",
+        "output/e015_feasibility_full_20261102",
+        "output/e015_strict_observed_20261102",
+        "output/e015_exploratory_observed_20261102",
+        "output/e015_observed_summary_20261102"
+      ],
+      "legacy_package": null,
+      "plan": {
+        "features_selected": 100,
+        "decoder": "Shrinkage LDA",
+        "positions": "Separate decoders",
+        "candidate_features": 25364,
+        "selection": "Training-only five-waveform profile correlations",
+        "stage": "Observed fitting complete; permutation inference pending",
+        "strict_observed_models": 11,
+        "unreliable_exploratory_models": 20,
+        "permutations": 0
+      },
+      "publication": "Docs/Reports/E015/index.html"
+    },
+    {
+      "id": "E016",
+      "title": "One-versus-rest waveform detection on fixed E015 features",
+      "category": "waveform_decoding",
+      "dataset": "Task 4",
+      "status": "In progress",
+      "package": "experiments/waveform_decoding/e016_one_vs_rest_decoding",
+      "reserved_package": "experiments/waveform_decoding/e016_one_vs_rest_decoding",
+      "last_completed_run": "2026-11-02",
+      "findings": "Docs/E016_BINARY_RESULTS.md",
+      "canonical_outputs": [
+        "output/e016_binary_observed_20261102",
+        "output/e016_binary_summary_20261102"
+      ],
+      "legacy_package": null,
+      "plan": {
+        "primary_binary_detectors": 100,
+        "strict_reference_detectors": 55,
+        "n_features": 100,
+        "new_feature_selection": false,
+        "new_spatial_fitting": false,
+        "model": "Binary shrinkage LDA with equal target/rest priors",
+        "metrics": [
+          "Binary balanced accuracy",
+          "ROC-AUC"
+        ],
+        "inference": "Observed estimates first; full-pipeline null and multiple comparisons required before significance claims",
+        "stage": "Observed fitting and prediction audit complete; permutation inference pending",
+        "observed_complete": 155,
+        "permutations": 0,
+        "constant_fallback_folds": 1
+      },
+      "publication": "Docs/Reports/E016/index.html"
     }
   ]
 }
