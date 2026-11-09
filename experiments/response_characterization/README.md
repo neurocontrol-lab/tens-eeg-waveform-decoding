@@ -11,3 +11,4 @@ How do voltage and slope patterns vary with waveform, electrode, time and presen
 | E008 | [Time-resolved waveform, position and interaction effects](e008_time_resolved_effects/README.md) | Task 4 | Completed |
 | E011 | [Electrode-by-time-bin waveform repeatability](e011_electrode_bin_repeatability/README.md) | Task 4 | Completed |
 | E014 | [All-electrode, alpha/beta power and calibrated xDAWN repeatability](e014_all_electrode_repeatability/README.md) | Task 4 | Completed |
+| E017 | [EEG response and nominal cathodic charge](e017_eeg_charge_relation/README.md) | Task 3 | Completed |

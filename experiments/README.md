@@ -2,7 +2,7 @@
 
 Experiments have stable project-wide IDs, descriptive package names and physical category folders. Task/cohort information belongs in metadata and each run guide. Run all commands from the repository root.
 
-**Updated: 2026-11-02.** 12 completed, 2 planned, 2 in progress. Completed means the specified analysis finished; it does not imply a positive scientific result.
+**Updated: 2026-11-09.** 13 completed, 2 planned, 2 in progress. Completed means the specified analysis finished; it does not imply a positive scientific result.
 
 ## Status of completed and planned experiments
 
@@ -24,6 +24,7 @@ Experiments have stable project-wide IDs, descriptive package names and physical
 | E014 | [All-electrode, alpha/beta power and calibrated xDAWN repeatability](response_characterization/e014_all_electrode_repeatability/README.md) | response characterization | Task 4 | Completed | 2026-10-30 | [Results](../Docs/E014_REPEATABILITY_RESULTS.md) |
 | E015 | [Position-specific multiscale repeatability-selected decoding](waveform_decoding/e015_position_repeatability_decoding/README.md) | waveform decoding | Task 4 | In progress | 2026-11-02 | [Results](../Docs/E015_OBSERVED_RESULTS.md) |
 | E016 | [One-versus-rest waveform detection on fixed E015 features](waveform_decoding/e016_one_vs_rest_decoding/README.md) | waveform decoding | Task 4 | In progress | 2026-11-02 | [Results](../Docs/E016_BINARY_RESULTS.md) |
+| E017 | [EEG response and nominal cathodic charge](response_characterization/e017_eeg_charge_relation/README.md) | response characterization | Task 3 | Completed | 2026-11-09 | [Results](../Docs/E017_TASK3_CHARGE_RESULTS.md) |
 
 Planned IDs are reserved; no empty executable packages or results are created for them. Use Planned, In progress, Completed, Blocked or Superseded. Use Scheduled only when an execution has an actual schedule. Status labels do not start jobs or recurring automations.
 
@@ -46,6 +47,7 @@ How do voltage and slope patterns vary with waveform, electrode, time and presen
 - **E008** - Time-resolved waveform, position and interaction effects (completed).
 - **E011** - Electrode-by-time-bin waveform repeatability (completed).
 - **E014** - All-electrode, alpha/beta power and calibrated xDAWN repeatability (completed).
+- **E017** - EEG response and nominal cathodic charge (completed).
 
 ### [Single-epoch waveform decoding](waveform_decoding/README.md)
 

@@ -1,5 +1,5 @@
 {
-  "updated": "2026-11-02",
+  "updated": "2026-11-09",
   "id_policy": "Stable project-wide IDs; never renumber or reuse. Run dates are separate from experiment IDs.",
   "experiments": [
     {
@@ -369,6 +369,30 @@
         "constant_fallback_folds": 1
       },
       "publication": "Docs/Reports/E016/index.html"
+    },
+    {
+      "id": "E017",
+      "title": "EEG response and nominal cathodic charge",
+      "category": "response_characterization",
+      "dataset": "Task 3",
+      "status": "Completed",
+      "package": "experiments/response_characterization/e017_eeg_charge_relation",
+      "reserved_package": "experiments/response_characterization/e017_eeg_charge_relation",
+      "last_completed_run": "2026-11-09",
+      "findings": "Docs/E017_TASK3_CHARGE_RESULTS.md",
+      "canonical_outputs": [
+        "output/e017_task3_charge_20261109",
+        "output/e017_task3_charge_full_montage_20261109",
+        "output/e017_task3_charge_forecast_20261109",
+        "output/e017_task3_pooled_forecast_20261109"
+      ],
+      "legacy_package": null,
+      "plan": {
+        "feature": "Fixed C4/CP4 mean, full-montage voltage means, and 50 ms voltage history, with matched pre-stimulus controls",
+        "predictor": "Absolute nominal cathodic charge",
+        "models": "Waveform intercepts with constant, shared or separate waveform slopes per participant; linear voltage-history forecasts with and without nominal charge",
+        "evaluation": "Upper-tier holdout and chronological trial holdout, including pooled-waveform forecasts within participant"
+      }
     }
   ]
 }
