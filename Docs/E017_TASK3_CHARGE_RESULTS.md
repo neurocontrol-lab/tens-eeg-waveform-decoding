@@ -21,6 +21,8 @@ Task 3 has 1,671 CSV trials and 1,651 recognized XDF triggers across 11 particip
 
 The primary analysis includes trigger-confirmed trials irrespective of sensation ratings. Excluding all-zero or missing sensation reports was a sensitivity check. It retained 1,342 trials in 46 cells.
 
+The [reviewed alignment exceptions](../experiments/response_characterization/e017_eeg_charge_relation/README.md#reviewed-task-3-alignment-exceptions) provide a separate corrected extraction for the three participant–waveform cells. The results on this page describe the original strict extraction.
+
 ## Held-out prediction
 
 For each participant, the three models used threshold and threshold +0.25 mA for calibration and predicted threshold +0.50 mA. All models used separate waveform intercepts. The constant model used a zero slope, the shared model used one slope across waveforms for that participant, and the separate model estimated one slope for each waveform. Fits used absolute charge. Within-waveform demeaning in the least-squares calculation removes the intercept from the slope calculation. Reported intercepts and predictions use the original charge scale.

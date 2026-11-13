@@ -11,6 +11,22 @@ Run from the repository root with fresh output directories.
 
 The extractor retains the recorded timestamps and uses the Task 3 trigger codebook. Each standard participant and waveform cell must match its complete CSV trigger sequence. The extraction audit records excluded cells and source digests. The model runner reads the compact feature cache and can be rerun without decoding the XDF files again.
 
+## Reviewed Task 3 alignment exceptions
+
+The `--reviewed-alignment` option prepares a corrected trial join from the original XDF and master CSV. It requires the reviewed CSV digest and exact trigger order after applying these three exceptions. The standard extraction command above reproduces the original strict join.
+
+| Participant and waveform | Rule for the corrected join | Evidence |
+| --- | --- | --- |
+| 6, linear increase | Use master CSV rows 2002–2031, trial IDs 121–150. Set tiers from 2.25, 2.50 and 2.75 mA. | Ten trials per level. All 30 trigger codes match in order. Earlier rows 1880–1881 fall outside this block. |
+| 9, linear decrease | Exclude trigger 233 at sample 3178732 in `EEGDATA_SUB9-T3_W1-2-3.xdf` from the CSV join. | All 30 remaining codes match in order. The unmatched marker remains in `xdf_events.csv` for audit and neighboring-event checks. Its acquisition origin is unconfirmed. |
+| 12, sine | Use master CSV rows 4560–4589, trial IDs 31–60. Set tiers from 2.00, 2.25 and 2.50 mA. | Ten trials per level. All 30 trigger codes match in order. Earlier rows 4511–4529 fall outside this block. |
+
+Row numbers count the header as row 1. The audit records the original counts, the retained counts and the exact excluded rows or marker. The existing EEG quality rules apply to the recovered trials. The following command reuses the saved EEG event table and ROI features and produces a fresh corrected extraction. Omit `--reuse-extraction` to extract directly from the XDF recordings.
+
+```powershell
+& ./.venv/Scripts/python.exe -m experiments.response_characterization.e017_eeg_charge_relation.extract --reviewed-alignment --reuse-extraction output/e017_task3_charge_20261109/extraction --output output/e017_task3_charge_reviewed_20261113/extraction
+```
+
 The fitted outcome is mean C4/CP4 voltage in a fixed window. The models use absolute nominal cathodic charge in µC. Lower tiers determine the coefficients used for prediction at the upper tier. Separate full-range fits describe the slopes across all three tiers. The pre-stimulus control uses the same eligible trials and model comparisons.
 
 `fit/summary.json` contains participant bootstrap intervals. `fit/coefficients.csv` distinguishes calibration and all-tier estimates, and `fit/upper_tier_predictions.csv` holds each prediction. The `fit/charge_relation.png` figure summarizes prediction error and descriptive slopes.

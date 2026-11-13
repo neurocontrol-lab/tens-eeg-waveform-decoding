@@ -2,7 +2,7 @@
 
 Each category has its own three-digit sequence starting at `001`. The prefixes are **WD** for waveform decoding, **RC** for response characterization, **SQ** for signal quality, and **US** for uncertainty and sensitivity. The Reference column lists the `E` numbers used in package names and earlier reports. For example, **RC-006** is the EEG charge study referenced as **E017**. Task and cohort information belongs in the registry and run guide. Run all commands from the repository root.
 
-**Updated: 2026-11-13.** 14 completed, 2 planned, 2 in progress. Completed means the specified analysis finished; it does not imply a positive scientific result.
+**Updated: 2026-11-13.** 16 completed, 2 planned, 2 in progress. Completed means the specified analysis finished; it does not imply a positive scientific result.
 
 ## Status of completed and planned experiments
 
@@ -26,6 +26,8 @@ Each category has its own three-digit sequence starting at `001`. The prefixes a
 | WD-006 | [One-versus-rest waveform detection on fixed E015 features](waveform_decoding/e016_one_vs_rest_decoding/README.md) | waveform decoding | Task 4 | In progress | 2026-11-02 | [Results](../Docs/E016_BINARY_RESULTS.md) | E016 |
 | RC-006 | [EEG response and nominal cathodic charge](response_characterization/e017_eeg_charge_relation/README.md) | response characterization | Task 3 | Completed | 2026-11-09 | [Results](../Docs/E017_TASK3_CHARGE_RESULTS.md) | E017 |
 | WD-007 | [Task 4 waveform decoding with nominal-charge adjustment](waveform_decoding/e018_nominal_charge_adjustment/README.md) | waveform decoding | Task 4 | Completed | 2026-11-13 | [Results](../Docs/WD007_NOMINAL_CHARGE_RESULTS.md) | E018 |
+| RC-007 | [Predict nominal Task 4 charge from EEG](response_characterization/e019_task4_charge_prediction/README.md) | response characterization | Task 4 | Completed | 2026-11-13 | [Results](../Docs/RC007_TASK4_CHARGE_PREDICTION.md) | E019 |
+| RC-008 | [Predict nominal Task 3 charge from EEG](response_characterization/e020_task3_charge_prediction/README.md) | response characterization | Task 3 | Completed | 2026-11-13 | [Results](../Docs/RC008_TASK3_CHARGE_PREDICTION.md) | E020 |
 
 Planned IDs are reserved; no empty executable packages or results are created for them. Use Planned, In progress, Completed, Blocked or Superseded. Use Scheduled only when an execution has an actual schedule. Status labels do not start jobs or recurring automations.
 

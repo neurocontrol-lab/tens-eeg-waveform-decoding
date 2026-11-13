@@ -432,6 +432,37 @@
       "canonical_outputs": ["output/wd007_nominal_charge_20261113_verified"],
       "legacy_package": null,
       "publication": "Docs/Reports/WD-007/index.html"
+    },
+    {
+      "id": "E019",
+      "category_number": 7,
+      "title": "Predict nominal Task 4 charge from EEG",
+      "category": "response_characterization",
+      "dataset": "Task 4",
+      "status": "Completed",
+      "package": "experiments/response_characterization/e019_task4_charge_prediction",
+      "reserved_package": "experiments/response_characterization/e019_task4_charge_prediction",
+      "last_completed_run": "2026-11-13",
+      "findings": "Docs/RC007_TASK4_CHARGE_PREDICTION.md",
+      "canonical_outputs": ["output/rc007_task4_charge_prediction_20261113_verified"],
+      "legacy_package": null
+    },
+    {
+      "id": "E020",
+      "category_number": 8,
+      "title": "Predict nominal Task 3 charge from EEG",
+      "category": "response_characterization",
+      "dataset": "Task 3",
+      "status": "Completed",
+      "package": "experiments/response_characterization/e020_task3_charge_prediction",
+      "reserved_package": "experiments/response_characterization/e020_task3_charge_prediction",
+      "last_completed_run": "2026-11-13",
+      "findings": "Docs/RC008_TASK3_CHARGE_PREDICTION.md",
+      "canonical_outputs": [
+        "output/rc008_task3_charge_prediction_reviewed_20261113",
+        "output/rc008_task3_charge_prediction_strict_20261113"
+      ],
+      "legacy_package": null
     }
   ]
 }

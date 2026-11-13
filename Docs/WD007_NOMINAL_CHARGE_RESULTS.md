@@ -2,7 +2,7 @@
 
 **13 November 2026.** The pooled adjustment raised balanced accuracy in both windows. The pre-stimulus increase was larger than the post-stimulus increase. Waveform-specific adjustment gave near-perfect decoding in both windows, and its correction vector alone identified all five waveform classes in the matched cohort.
 
-[Interactive report with class recall and confusion matrices](Reports/WD-007/index.html)
+[One-page research note](WD007_TASK4_CHARGE_ADJUSTMENT.pdf) · [Interactive report with class recall and confusion matrices](Reports/WD-007/index.html)
 
 ## Matched comparisons
 

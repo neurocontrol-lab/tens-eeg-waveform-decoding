@@ -18,6 +18,9 @@ PRE = (-0.250, -0.150, -0.650, -0.450)
 CSV = Path('EEG_Codes_Export/02_SourceLocalization_Task4/Master_Data_ToSub12 (1).csv')
 AREA_FACTORS = dict(zip(WAVES, (2 / np.pi, 1., .5, .5, .5)))
 PHASE_MS = .4
+REVIEWED_CSV_SHA256 = '19596071570fb8c152e0a4bd6468590ad3754abf0ce6c14ab63504fd4db0300e'
+REVIEWED_CSV_BLOCKS = {(6, 'LinInc'): (2002, 2031), (12, 'Sine'): (4560, 4589)}
+REVIEWED_XDF_EVENT = ('EEGDATA_SUB9-T3_W1-2-3.xdf', 3178732, 233)
 
 
 def digest(path):
@@ -129,16 +132,47 @@ def recorded_events(path, subject):
     return pd.DataFrame(rows), audit
 
 
-def align_cells(trials, events):
+def reviewed_cell(subject, waveform, cell, found):
+    key = (subject, waveform)
+    if key in REVIEWED_CSV_BLOCKS:
+        first, last = REVIEWED_CSV_BLOCKS[key]
+        keep = cell.csv_row.between(first, last)
+        selected = cell.loc[keep].copy()
+        if not np.array_equal(selected.csv_row, np.arange(first, last + 1)):
+            raise ValueError(f'Unexpected row identities in reviewed CSV block {key}')
+        levels, counts = np.unique(selected.amplitude_mA, return_counts=True)
+        if len(levels) != 3 or not np.allclose(np.diff(levels), .25) or not (counts == 10).all():
+            raise ValueError(f'Unexpected amplitude tiers in reviewed CSV block {key}')
+        selected['tier'] = np.searchsorted(levels, selected.amplitude_mA)
+        selected['standard_cell'] = True
+        selected['expected_trigger'] = 224 + 3 * WAVES.index(waveform) + selected.tier
+        return selected, found, {'excluded_csv_rows': cell.loc[~keep, 'csv_row'].tolist()}
+    if key == (9, 'LinDec'):
+        recording, sample, trigger = REVIEWED_XDF_EVENT
+        extra = found.recording.eq(recording) & found['sample'].eq(sample) & found.trigger.eq(trigger)
+        if extra.sum() != 1:
+            raise ValueError('Expected exactly one reviewed participant 9 LinDec trigger')
+        return cell, found.loc[~extra], {'excluded_xdf_event': dict(recording=recording, sample=sample, trigger=trigger)}
+    return cell, found, None
+
+
+def align_cells(trials, events, *, reviewed=False):
     aligned, audit = [], []
     for (subject, waveform), cell in trials.groupby(['subject', 'waveform'], sort=True):
         found = events.loc[events.subject.eq(subject) & events.waveform.eq(waveform)].reset_index(drop=True)
+        row = dict(subject=int(subject), waveform=waveform, csv_trials=len(cell), xdf_trials=len(found))
+        exception = None
+        if reviewed:
+            cell, found, exception = reviewed_cell(subject, waveform, cell, found)
         expected = cell.expected_trigger.to_numpy()
         actual = found.trigger.to_numpy()
         standard = bool(cell.standard_cell.all())
         matches = bool(np.array_equal(expected, actual)) if standard else False
-        row = dict(subject=int(subject), waveform=waveform, csv_trials=len(cell), xdf_trials=len(found),
-                   standard_cell=standard, exact_trigger_sequence=matches)
+        row.update(standard_cell=standard, exact_trigger_sequence=matches)
+        if exception is not None:
+            if not matches:
+                raise ValueError(f'Reviewed Task 3 cell {subject}, {waveform} no longer aligns exactly')
+            row.update(alignment_exception=exception, retained_csv_trials=len(cell), retained_xdf_trials=len(found))
         if not matches:
             row['reason'] = 'nonstandard_amplitudes' if not standard else 'trigger_sequence_mismatch'
             row['csv_expected_codes'] = expected.tolist() if standard else []
@@ -154,28 +188,56 @@ def align_cells(trials, events):
     return pd.concat(aligned, ignore_index=True), audit
 
 
-def run(output, subjects):
-    output.mkdir(parents=True, exist_ok=False)
+def run(output, subjects, *, reviewed=False, reuse_extraction=None):
+    if output.exists():
+        raise FileExistsError(output)
+    csv_sha256 = digest(CSV)
+    if reviewed and csv_sha256 != REVIEWED_CSV_SHA256:
+        raise ValueError('Master CSV differs from the version used to review the Task 3 exceptions')
     trials = read_trials(CSV)
     if subjects:
         trials = trials.loc[trials.subject.isin(subjects)]
-    events, audits = [], []
-    for subject in sorted(trials.subject.unique()):
-        paths = sorted((Path('EEGData') / f'Subject{subject}_data').glob('*-T3*.xdf'))
-        if not paths:
-            raise FileNotFoundError(f'No Task 3 XDF for participant {subject}')
-        for path in paths:
-            frame, audit = recorded_events(path, int(subject))
-            events.append(frame)
-            audits.append(audit)
-            print(f'{path.name}: {len(frame)} recognized triggers', flush=True)
-    events = pd.concat(events, ignore_index=True)
+    source_metadata = {}
+    if reuse_extraction is None:
+        frames, audits = [], []
+        for subject in sorted(trials.subject.unique()):
+            paths = sorted((Path('EEGData') / f'Subject{subject}_data').glob('*-T3*.xdf'))
+            if not paths:
+                raise FileNotFoundError(f'No Task 3 XDF for participant {subject}')
+            for path in paths:
+                frame, audit = recorded_events(path, int(subject))
+                frames.append(frame)
+                audits.append(audit)
+                print(f'{path.name}: {len(frame)} recognized triggers', flush=True)
+        events = pd.concat(frames, ignore_index=True)
+    else:
+        audit_path = reuse_extraction / 'extraction_audit.json'
+        events_path = reuse_extraction / 'xdf_events.csv'
+        source = json.loads(audit_path.read_text(encoding='utf-8'))
+        if source['csv_sha256'] != csv_sha256:
+            raise ValueError('Reused extraction has a different master CSV digest')
+        if source['roi'] != list(ROI) or source['post_window_baseline_s'] != list(POST) or source['pre_window_baseline_s'] != list(PRE):
+            raise ValueError('Reused extraction has different EEG feature settings')
+        events = pd.read_csv(events_path, float_precision='round_trip')
+        recorded_counts = {Path(a['recording']).name: a['recognized_events'] for a in source['recordings']}
+        if events.recording.value_counts().to_dict() != recorded_counts:
+            raise ValueError('Reused event table does not match the audited recording counts')
+        requested = set(trials.subject)
+        if not requested.issubset(set(events.subject)):
+            raise ValueError('Reused extraction is missing requested Task 3 participants')
+        events = events.loc[events.subject.isin(requested)]
+        audits = [a for a in source['recordings'] if Path(a['recording']).name in set(events.recording)]
+        source_metadata = dict(reuse_extraction=str(reuse_extraction), source_audit_sha256=digest(audit_path),
+                               source_xdf_events_sha256=digest(events_path))
+    aligned, cells = align_cells(trials, events, reviewed=reviewed)
+    output.mkdir(parents=True, exist_ok=False)
     events.to_csv(output / 'xdf_events.csv', index=False)
-    aligned, cells = align_cells(trials, events)
     aligned.to_csv(output / 'aligned_features.csv', index=False)
-    metadata = dict(csv=str(CSV), csv_sha256=digest(CSV), roi=ROI, post_window_baseline_s=POST,
+    metadata = dict(csv=str(CSV), csv_sha256=csv_sha256, roi=ROI, post_window_baseline_s=POST,
                     pre_window_baseline_s=PRE, nominal_cathodic_phase_ms=PHASE_MS, area_factors=AREA_FACTORS,
-                    recordings=audits, cells=cells, aligned_trials=len(aligned), pyxdf_version=pyxdf.__version__)
+                    recordings=audits, cells=cells, aligned_trials=len(aligned),
+                    pyxdf_version=source['pyxdf_version'] if reuse_extraction is not None else pyxdf.__version__,
+                    reviewed_alignment=reviewed, **source_metadata)
     (output / 'extraction_audit.json').write_text(json.dumps(metadata, indent=2) + '\n')
     print(f'Aligned {len(aligned)} trials in {sum(r["exact_trigger_sequence"] for r in cells)} cells', flush=True)
 
@@ -184,5 +246,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--output', required=True, type=Path)
     parser.add_argument('--subjects', nargs='+', type=int)
+    parser.add_argument('--reviewed-alignment', action='store_true', help='Apply the three documented Task 3 alignment exceptions')
+    parser.add_argument('--reuse-extraction', type=Path, help='Reuse the recorded-event and ROI cache from a previous extraction')
     args = parser.parse_args()
-    run(args.output, args.subjects)
+    run(args.output, args.subjects, reviewed=args.reviewed_alignment, reuse_extraction=args.reuse_extraction)
