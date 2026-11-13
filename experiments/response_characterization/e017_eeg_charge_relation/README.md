@@ -40,3 +40,5 @@ Use `--include-200ms` to compare all three target widths at starts where a full 
 ```powershell
 & ./.venv/Scripts/python.exe -m experiments.response_characterization.e017_eeg_charge_relation.forecast --cache output/e017_task3_charge_forecast_20261109/extraction --fold-assignments output/e017_task3_charge_full_montage_20261109/fit/fold_assignments.csv --output output/e017_task3_pooled_forecast_20261109 --include-200ms
 ```
+
+Add `--per-waveform` and use `--output output/e017_task3_forecast_by_waveform_20261109` to fit both history models within each known waveform and include the separate-slope calibration. The run exports `fit/participant_waveform_scores.csv` alongside the cohort summary and held-out predictions.

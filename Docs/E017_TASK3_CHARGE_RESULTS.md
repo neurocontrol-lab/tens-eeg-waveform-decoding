@@ -1,6 +1,6 @@
 # E017. Task 3 EEG response and nominal charge
 
-[One-page pooled forecast research note](E017_TASK3_POOLED_FORECAST.pdf)
+[Research note on pooled and waveform-specific forecasts](E017_TASK3_POOLED_FORECAST.pdf)
 
 **9 November 2026.** The charge-only regressions gave higher held-out error than the waveform means. With recent EEG voltage in the model, nominal charge reduced post-stimulus squared error by 1.40% for the primary 100 ms target, with a participant bootstrap interval of −0.33% to +3.49%.
 
@@ -102,6 +102,18 @@ All three widths used the same trials, electrodes, histories and target starts o
 
 For the 200 ms targets, the paired post-minus-pre difference was +1.60 percentage points (−0.03 to +3.66). The charge calibration without voltage history increased post-stimulus squared error by 1.61%. A one-second Task 4 decoder would require Task 3 calibration slopes fitted to the exact electrode and window features used by the decoder, as well as independently measured charge for each Task 4 trial.
 
+### Separate forecasts for each waveform
+
+The matched comparison also fitted the intercept, history weights and charge slope separately for each known waveform within a participant. It held out the same trials as the pooled forecast. The pooled predictions were reproduced exactly.
+
+| Target width | Post MAE, separate history (µV) | Post MAE, separate history + charge (µV) | Post error reduction from adding charge (95% interval) |
+| --- | ---: | ---: | ---: |
+| 50 ms | 2.454 | 2.515 | −3.50% (−6.14% to −0.93%) |
+| 100 ms | 2.613 | 2.699 | −4.25% (−7.03% to −1.66%) |
+| 200 ms | 3.293 | 3.389 | −3.60% (−5.15% to −2.00%) |
+
+Pooling gave lower held-out MAE at all three widths. In the 200 ms calibration without EEG history, the waveform mean gave a post-stimulus MAE of 58.85 µV, compared with 59.38 µV for the shared charge slope and 60.20 µV for separate slopes. The PDF includes the per-waveform forecast results and the proposed Task 4 adjustment.
+
 ## Reproduction
 
-The original trial-alignment audit, predictions, coefficients and figure are under `output/e017_task3_charge_20261109`. The full-montage run is under `output/e017_task3_charge_full_montage_20261109`. The forecast cache, predictions, participant scores and descriptive calibration slopes are under `output/e017_task3_charge_forecast_20261109`. The repeated pooled matched-width forecast is under `output/e017_task3_pooled_forecast_20261109`. [E017 run guide](../experiments/response_characterization/e017_eeg_charge_relation/README.md)
+The original trial-alignment audit, predictions, coefficients and figure are under `output/e017_task3_charge_20261109`. The full-montage run is under `output/e017_task3_charge_full_montage_20261109`. The forecast cache, predictions, participant scores and descriptive calibration slopes are under `output/e017_task3_charge_forecast_20261109`. The repeated pooled matched-width forecast is under `output/e017_task3_pooled_forecast_20261109`. The comparison with waveform-specific models is under `output/e017_task3_forecast_by_waveform_20261109`. [E017 run guide](../experiments/response_characterization/e017_eeg_charge_relation/README.md)

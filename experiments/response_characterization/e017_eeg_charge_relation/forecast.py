@@ -16,6 +16,13 @@ WIDTHS_MS = (100, 50)
 PERIOD_FIRST_BIN_MS = (50, -500)
 START_BINS = (3, 5, 7)
 MODELS = ('history', 'history_charge', 'waveform_mean', 'waveform_charge')
+PER_WAVEFORM_MODELS = ('separate_history', 'separate_history_charge', 'separate_waveform_charge')
+COMPARATORS = {
+    'history_charge': 'history',
+    'waveform_charge': 'waveform_mean',
+    'separate_history_charge': 'separate_history',
+    'separate_waveform_charge': 'waveform_mean',
+}
 
 
 def forecast_arrays(bins, widths_ms=WIDTHS_MS, start_bins=START_BINS):
@@ -46,10 +53,11 @@ def fit_forecasts(history, targets, q, train, test):
     return predictions
 
 
-def trial_scores(observed, predicted, events, widths_ms, starts_ms):
+def trial_scores(observed, predicted, events, widths_ms, starts_ms, models, *, by_waveform=False):
     """Weight waveform–tier cells equally within each participant."""
     rows = []
-    for subject, group in events.groupby('subject'):
+    keys = ['subject', 'waveform'] if by_waveform else ['subject']
+    for key, group in events.groupby(keys):
         indices = group.index.to_numpy()
         cell_sizes = group.groupby(['waveform', 'tier']).csv_row.transform('size').to_numpy()
         weights = 1. / cell_sizes
@@ -62,17 +70,18 @@ def trial_scores(observed, predicted, events, widths_ms, starts_ms):
             for p, period in enumerate(PERIODS):
                 for start, time in [(None, 'all'), *enumerate(starts_ms[p])]:
                     selected = slice(None) if start is None else start
-                    for m, model in enumerate(MODELS):
+                    for m, model in enumerate(models):
                         error = mse[m, w, p, selected].mean()
-                        comparator = mse[m - 1, w, p, selected].mean() if m in (1, 3) else None
-                        rows.append(dict(subject=int(subject), model=model, window=period, target_width_ms=width,
+                        base = COMPARATORS.get(model)
+                        comparator = mse[models.index(base), w, p, selected].mean() if base else None
+                        rows.append(dict(zip(keys, key), model=model, window=period, target_width_ms=width,
                                          target_start_ms=time, mae_uv=float(mae[m, w, p, selected].mean()),
                                          r2=float(1 - error / variance[w, p, selected].mean()),
                                          incremental_r2=None if comparator is None else float(1 - error / comparator)))
     return pd.DataFrame(rows)
 
 
-def analyze(cache, fold_path, output, *, include_200ms=False):
+def analyze(cache, fold_path, output, *, include_200ms=False, per_waveform=False):
     all_events = pd.read_csv(cache / 'montage_events.csv')
     folds = pd.read_csv(fold_path)
     columns = ['csv_row', 'subject', 'waveform', 'tier', 'recording', 'sample', 'charge_uC', 'montage_qc_pass']
@@ -93,7 +102,8 @@ def analyze(cache, fold_path, output, *, include_200ms=False):
     events = folds.loc[included].reset_index(drop=True)
     if not events.csv_row.is_unique or not events.montage_qc_pass.all():
         raise ValueError('Fold assignments contain duplicate or ineligible trials')
-    predictions = np.full((len(events), len(MODELS), *targets.shape[1:]), np.nan)
+    models = (*MODELS, *PER_WAVEFORM_MODELS) if per_waveform else MODELS
+    predictions = np.full((len(events), len(models), *targets.shape[1:]), np.nan)
     slopes, subjects = [], []
     q = events.charge_uC.to_numpy()
     for subject, group in events.groupby('subject'):
@@ -103,14 +113,21 @@ def analyze(cache, fold_path, output, *, include_200ms=False):
             predictions[test.index, :2] = fit_forecasts(history, targets, q, train.index.to_numpy(),
                                                        test.index.to_numpy())
             calibration, _ = fit_models(train, targets, test)
-            predictions[test.index, 2:] = calibration[:, :2]
+            predictions[test.index, 2:4] = calibration[:, :2]
+            if per_waveform:
+                predictions[test.index, 6] = calibration[:, 2]
+                for waveform, test_cell in test.groupby('waveform'):
+                    train_cell = train.loc[train.waveform.eq(waveform)]
+                    predictions[test_cell.index, 4:6] = fit_forecasts(
+                        history, targets, q, train_cell.index.to_numpy(), test_cell.index.to_numpy(),
+                    )
         _, beta = fit_models(group, targets, group)
         slopes.append(beta)
         subjects.append(subject)
     if not np.isfinite(predictions).all():
         raise ValueError('At least one eligible trial lacks finite out-of-fold predictions')
 
-    scores = trial_scores(targets, predictions, events, widths_ms, starts_ms)
+    scores = trial_scores(targets, predictions, events, widths_ms, starts_ms, models)
     overall = scores.loc[scores.target_start_ms.eq('all')]
     summary = dict(trials=len(events), participants=len(subjects), electrodes=len(channels),
                    folds=FOLDS, history_bins_ms=[[-150, -100], [-100, -50], [-50, 0]],
@@ -124,7 +141,7 @@ def analyze(cache, fold_path, output, *, include_200ms=False):
                                       if group[key].notna().any()}
                               for model, group in by_period.groupby('model')}
         differences = {}
-        for model in ('history_charge', 'waveform_charge'):
+        for model in (name for name in COMPARATORS if name in models):
             paired = by_width.loc[by_width.model.eq(model)].pivot(index='subject', columns='window', values='incremental_r2')
             differences[model] = interval(paired.post - paired.pre)
         result['post_minus_pre_incremental_r2'] = differences
@@ -132,9 +149,12 @@ def analyze(cache, fold_path, output, *, include_200ms=False):
 
     output.mkdir(parents=True, exist_ok=False)
     scores.to_csv(output / 'participant_scores.csv', index=False)
+    if per_waveform:
+        by_wave = trial_scores(targets, predictions, events, widths_ms, starts_ms, models, by_waveform=True)
+        by_wave.to_csv(output / 'participant_waveform_scores.csv', index=False)
     events.to_csv(output / 'fold_assignments.csv', index=False)
     np.savez_compressed(output / 'held_out_predictions.npz', observed=targets, predictions=predictions,
-                        csv_rows=events.csv_row.to_numpy(), channels=channels, models=MODELS, windows=PERIODS,
+                        csv_rows=events.csv_row.to_numpy(), channels=channels, models=models, windows=PERIODS,
                         widths_ms=widths_ms, starts_ms=starts_ms)
     np.savez_compressed(output / 'descriptive_shared_charge_slopes.npz', slopes=np.asarray(slopes), subjects=subjects,
                         channels=channels, windows=PERIODS, widths_ms=widths_ms, starts_ms=starts_ms)
@@ -149,10 +169,12 @@ if __name__ == '__main__':
     parser.add_argument('--fold-assignments', required=True, type=Path)
     parser.add_argument('--output', required=True, type=Path)
     parser.add_argument('--include-200ms', action='store_true', help='Compare 50, 100 and 200 ms at shared target starts')
+    parser.add_argument('--per-waveform', action='store_true', help='Also fit models within each known waveform')
     args = parser.parse_args()
     cache = args.cache
     if args.extraction is not None:
         cache = args.output / 'extraction'
         cache.mkdir(parents=True, exist_ok=False)
         extract(args.extraction, cache, subtract_trial_baseline=False)
-    analyze(cache, args.fold_assignments, args.output / 'fit', include_200ms=args.include_200ms)
+    analyze(cache, args.fold_assignments, args.output / 'fit', include_200ms=args.include_200ms,
+            per_waveform=args.per_waveform)
