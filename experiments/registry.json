@@ -1,9 +1,16 @@
 {
-  "updated": "2026-11-09",
-  "id_policy": "Stable project-wide IDs; never renumber or reuse. Run dates are separate from experiment IDs.",
+  "updated": "2026-11-13",
+  "id_policy": "Each category has its own stable three-digit sequence. The project-wide E-number is the reference used in existing packages and reports. Preserve assigned numbers and include planned experiments when allocating the next number.",
+  "category_prefixes": {
+    "waveform_decoding": "WD",
+    "response_characterization": "RC",
+    "signal_quality": "SQ",
+    "uncertainty_and_sensitivity": "US"
+  },
   "experiments": [
     {
       "id": "E001",
+      "category_number": 1,
       "title": "Sensor-space voltage baseline",
       "category": "waveform_decoding",
       "dataset": "Task 4",
@@ -19,6 +26,7 @@
     },
     {
       "id": "E002",
+      "category_number": 1,
       "title": "Electrode, presentation-position and EEG-slope responses",
       "category": "response_characterization",
       "dataset": "Task 4",
@@ -34,6 +42,7 @@
     },
     {
       "id": "E003",
+      "category_number": 1,
       "title": "Voltage feature audit",
       "category": "signal_quality",
       "dataset": "Task 4",
@@ -49,6 +58,7 @@
     },
     {
       "id": "E004",
+      "category_number": 2,
       "title": "Waveform decoding with xDAWN spatial features",
       "category": "waveform_decoding",
       "dataset": "Task 4",
@@ -64,6 +74,7 @@
     },
     {
       "id": "E005",
+      "category_number": 3,
       "title": "Waveform decoding with spectral and combined features",
       "category": "waveform_decoding",
       "dataset": "Task 4",
@@ -79,6 +90,7 @@
     },
     {
       "id": "E006",
+      "category_number": 2,
       "title": "Multiscale EEG response characterization",
       "category": "response_characterization",
       "dataset": "Task 4",
@@ -94,6 +106,7 @@
     },
     {
       "id": "E007",
+      "category_number": 2,
       "title": "Minimal versus supplied preprocessing comparison",
       "category": "signal_quality",
       "dataset": "Task 4",
@@ -109,6 +122,7 @@
     },
     {
       "id": "E008",
+      "category_number": 3,
       "title": "Time-resolved waveform, position and interaction effects",
       "category": "response_characterization",
       "dataset": "Task 4",
@@ -124,6 +138,7 @@
     },
     {
       "id": "E009",
+      "category_number": 1,
       "title": "Response uncertainty, earlier time coverage and sensitivity",
       "category": "uncertainty_and_sensitivity",
       "dataset": "Task 4",
@@ -140,6 +155,7 @@
     },
     {
       "id": "E010",
+      "category_number": 3,
       "title": "Simple-pipeline EEG visual inspection",
       "category": "signal_quality",
       "dataset": "Task 4",
@@ -155,6 +171,7 @@
     },
     {
       "id": "E011",
+      "category_number": 4,
       "title": "Electrode-by-time-bin waveform repeatability",
       "category": "response_characterization",
       "dataset": "Task 4",
@@ -223,6 +240,7 @@
     },
     {
       "id": "E012",
+      "category_number": 4,
       "title": "Longer-window waveform decoding with LDA, RBF SVM and EEGNet",
       "category": "waveform_decoding",
       "dataset": "Task 4",
@@ -262,6 +280,7 @@
     },
     {
       "id": "E013",
+      "category_number": 2,
       "title": "Classifier sensitivity to known EEG patterns",
       "category": "uncertainty_and_sensitivity",
       "dataset": "Task 4",
@@ -275,6 +294,7 @@
     },
     {
       "id": "E014",
+      "category_number": 5,
       "title": "All-electrode, alpha/beta power and calibrated xDAWN repeatability",
       "category": "response_characterization",
       "dataset": "Task 4",
@@ -307,6 +327,7 @@
     },
     {
       "id": "E015",
+      "category_number": 5,
       "title": "Position-specific multiscale repeatability-selected decoding",
       "category": "waveform_decoding",
       "dataset": "Task 4",
@@ -338,6 +359,7 @@
     },
     {
       "id": "E016",
+      "category_number": 6,
       "title": "One-versus-rest waveform detection on fixed E015 features",
       "category": "waveform_decoding",
       "dataset": "Task 4",
@@ -372,6 +394,7 @@
     },
     {
       "id": "E017",
+      "category_number": 6,
       "title": "EEG response and nominal cathodic charge",
       "category": "response_characterization",
       "dataset": "Task 3",
@@ -394,6 +417,21 @@
         "models": "Waveform intercepts with constant, shared or separate waveform slopes per participant; linear voltage-history forecasts with and without nominal charge",
         "evaluation": "Upper-tier holdout and chronological trial holdout, comparing pooled and waveform-specific forecasts within participant"
       }
+    },
+    {
+      "id": "E018",
+      "category_number": 7,
+      "title": "Task 4 waveform decoding with nominal-charge adjustment",
+      "category": "waveform_decoding",
+      "dataset": "Task 4",
+      "status": "Completed",
+      "package": "experiments/waveform_decoding/e018_nominal_charge_adjustment",
+      "reserved_package": "experiments/waveform_decoding/e018_nominal_charge_adjustment",
+      "last_completed_run": "2026-11-13",
+      "findings": "Docs/WD007_NOMINAL_CHARGE_RESULTS.md",
+      "canonical_outputs": ["output/wd007_nominal_charge_20261113_verified"],
+      "legacy_package": null,
+      "publication": "Docs/Reports/WD-007/index.html"
     }
   ]
 }

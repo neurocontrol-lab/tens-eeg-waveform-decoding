@@ -6,15 +6,30 @@ import json
 from pathlib import Path
 import re
 import pytest
+from experiments.catalog import display_id
 from experiments.provenance import (ROOT, MANIFEST, canonical_source_name,
     recorded_source_digest, source_matches, equivalent_cache_provenance)
 
 
 def test_all_registered_completed_packages_import_and_planned_ids_are_only_reserved():
-    registry = json.loads((ROOT/'experiments/registry.json').read_text())['experiments']
+    catalog = json.loads((ROOT/'experiments/registry.json').read_text(encoding='utf-8'))
+    registry = catalog['experiments']
+    prefixes = catalog['category_prefixes']
+    assert set(prefixes) == {e['category'] for e in registry}
+    assert len(set(prefixes.values())) == len(prefixes)
+    central = (ROOT/'experiments/README.md').read_text(encoding='utf-8')
+    category_pages = {category: (ROOT/'experiments'/category/'README.md').read_text(encoding='utf-8')
+                      for category in prefixes}
     assert len({e['id'] for e in registry}) == len(registry)
     assert [e['id'] for e in registry] == [f'E{i:03d}' for i in range(1,len(registry)+1)]
+    for category in prefixes:
+        numbers = sorted(e['category_number'] for e in registry if e['category'] == category)
+        assert numbers == list(range(1, len(numbers) + 1))
     for e in registry:
+        row_start = f'\n| {display_id(e, prefixes)} |'
+        assert any(row.startswith(row_start.strip()) and row.endswith(f'| {e["id"]} |')
+                   for row in central.splitlines())
+        assert row_start in category_pages[e['category']]
         if e['package'] is not None:
             assert e['dataset'] in {'Task 3', 'Task 4'}
             importlib.import_module(e['package'].replace('/','.'))

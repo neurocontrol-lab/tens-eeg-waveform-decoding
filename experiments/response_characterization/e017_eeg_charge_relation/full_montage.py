@@ -122,7 +122,7 @@ def extract(extraction, output, *, subtract_trial_baseline=True):
                         csv_rows=events.csv_row.to_numpy(), subtract_trial_baseline=subtract_trial_baseline)
 
 
-def fit_models(train, x, test):
+def charge_coefficients(train, x):
     """Fit featurewise models with waveform intercepts and absolute charge inputs."""
     offsets, numerators, denominators = {}, {}, {}
     for waveform, group in train.groupby('waveform'):
@@ -133,11 +133,17 @@ def fit_models(train, x, test):
         numerators[waveform] = np.tensordot(centered, y, axes=1)
         denominators[waveform] = centered @ centered
     shared = sum(numerators.values()) / sum(denominators.values())
+    separate = {waveform: numerators[waveform] / denominators[waveform] for waveform in offsets}
+    return offsets, shared, separate
+
+
+def fit_models(train, x, test):
+    offsets, shared, separate = charge_coefficients(train, x)
     predictions = np.empty((len(test), len(MODELS), *x.shape[1:]))
     for waveform, positions in test.groupby('waveform').indices.items():
         q_mean, y_mean = offsets[waveform]
         q = test.iloc[positions].charge_uC.to_numpy().reshape((-1,) + (1,) * (x.ndim - 1))
-        for m, beta in enumerate((0., shared, numerators[waveform] / denominators[waveform])):
+        for m, beta in enumerate((0., shared, separate[waveform])):
             alpha = y_mean - beta * q_mean
             predictions[positions, m] = alpha + q * beta
     return predictions, shared

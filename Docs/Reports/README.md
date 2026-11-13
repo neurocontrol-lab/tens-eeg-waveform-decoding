@@ -1,5 +1,6 @@
 # Shared analysis reports
 
+- [WD-007 nominal-charge adjustment](WD-007/index.html) compares the original and adjusted Task 4 decoder with pre-stimulus and charge-only controls. Filter by cohort and presentation to inspect per-waveform recall, confusion matrices and overlapping charges. [Findings](../WD007_NOMINAL_CHARGE_RESULTS.md)
 - [E015 multiclass decoding and class recall](E015/index.html): interactive confusion
   matrices, first/second presentations, participant results and explanations of
   ANOVA versus repeatability selection. [Open online](https://htmlpreview.github.io/?https://github.com/neurocontrol-lab/tens-eeg-waveform-decoding/blob/main/Docs/Reports/E015/index.html).
