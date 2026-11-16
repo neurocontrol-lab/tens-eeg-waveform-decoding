@@ -1,6 +1,6 @@
-# Single-epoch waveform decoding
+# Waveform and naturalness-choice decoding
 
-Can EEG features predict the delivered waveform on held-out data?
+Can EEG features predict the delivered waveform or the participant's choice between two stimuli on held-out data?
 
 [All experiment statuses](../README.md)
 
@@ -13,3 +13,4 @@ Can EEG features predict the delivered waveform on held-out data?
 | WD-005 | [Position-specific multiscale repeatability-selected decoding](e015_position_repeatability_decoding/README.md) | Task 4 | In progress |
 | WD-006 | [One-versus-rest waveform detection on fixed E015 features](e016_one_vs_rest_decoding/README.md) | Task 4 | In progress |
 | WD-007 | [Task 4 waveform decoding with nominal-charge adjustment](e018_nominal_charge_adjustment/README.md) | Task 4 | Completed |
+| WD-008 | Task 4 naturalness-choice decoding from paired EEG | Task 4 | Planned |

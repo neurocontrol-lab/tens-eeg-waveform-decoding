@@ -16,32 +16,62 @@ def refresh(root=ROOT):
     registry = json.loads((root/'experiments/registry.json').read_text(encoding='utf-8'))
     entries = registry['experiments']
     prefixes = registry['category_prefixes']
-    page = root/'experiments/README.md'
-    text = page.read_text(encoding='utf-8')
+    registry_page = root/'experiments/README.md'
+    text = registry_page.read_text(encoding='utf-8')
     counts = Counter(e['status'] for e in entries)
     summary = f'**Updated: {registry["updated"]}.** '+', '.join(f'{n} {s.lower()}' for s,n in counts.items())+'. Completed means the specified analysis finished; it does not imply a positive scientific result.'
     text = re.sub(r'\*\*Updated:.*?(?=\n\n)',summary,text,count=1,flags=re.S)
-    header = '| ID | Experiment | Category | Dataset | Status | Last completed run | Findings | Reference |'
-    rows = [header,'| --- | --- | --- | --- | --- | --- | --- | --- |']
-    for e in entries:
-        title = f'[{e["title"]}]({e["package"].removeprefix("experiments/")}/README.md)' if e['package'] else e['title']
-        findings = f'[Results](../{e["findings"]})' if e['findings'] else '-'
-        rows.append(f'| {display_id(e, prefixes)} | {title} | {e["category"].replace("_"," ")} | {e["dataset"]} | {e["status"]} | {e["last_completed_run"] or "-"} | {findings} | {e["id"]} |')
-    start = text.index(header)
-    stop = text.index('\n\n',start)
-    text = text[:start]+'\n'.join(rows)+text[stop:]
-    page.write_text(text,encoding='utf-8',newline='\n')
-    for category in {e['category'] for e in entries}:
-        page = root/'experiments'/category/'README.md'
-        text = page.read_text(encoding='utf-8')
-        start = text.index('| ID |')
-        rows = ['| ID | Experiment | Dataset | Status |','| --- | --- | --- | --- |']
-        for e in entries:
-            if e['category'] != category:
-                continue
-            title = f'[{e["title"]}]({Path(e["package"]).name}/README.md)' if e['package'] else e['title']
-            rows.append(f'| {display_id(e, prefixes)} | {title} | {e["dataset"]} | {e["status"]} |')
-        page.write_text(text[:start]+'\n'.join(rows)+'\n',encoding='utf-8',newline='\n')
+    sections = []
+    for category, prefix in prefixes.items():
+        category_page = root/'experiments'/category/'README.md'
+        category_text = category_page.read_text(encoding='utf-8')
+        heading, description, _ = category_text.split('\n\n', 2)
+        heading = heading.removeprefix('# ')
+        central_rows = [
+            '| ID | Experiment | Dataset | Status | Last completed run | Findings | Reference |',
+            '| --- | --- | --- | --- | --- | --- | --- |',
+        ]
+        category_rows = [
+            '| ID | Experiment | Dataset | Status |',
+            '| --- | --- | --- | --- |',
+        ]
+        for entry in sorted(
+            (e for e in entries if e['category'] == category),
+            key=lambda e: e['category_number'],
+        ):
+            experiment_id = display_id(entry, prefixes)
+            central_title = category_title = entry['title']
+            if entry['package']:
+                package_path = entry['package'].removeprefix('experiments/')
+                central_title = f'[{central_title}]({package_path}/README.md)'
+                category_title = f'[{category_title}]({Path(package_path).name}/README.md)'
+            dataset, status = entry['dataset'], entry['status']
+            last_run = entry['last_completed_run'] or '-'
+            findings = f'[Results](../{entry["findings"]})' if entry['findings'] else '-'
+            central_rows.append(
+                f'| {experiment_id} | {central_title} | {dataset} | {status} | '
+                f'{last_run} | {findings} | {entry["id"]} |'
+            )
+            category_rows.append(f'| {experiment_id} | {category_title} | {dataset} | {status} |')
+
+        sections.append('\n\n'.join([
+            f'### [{prefix} — {heading}]({category}/README.md)',
+            description,
+            '\n'.join(central_rows),
+        ]))
+        category_start = category_text.index('| ID |')
+        category_page.write_text(
+            category_text[:category_start]+'\n'.join(category_rows)+'\n',
+            encoding='utf-8', newline='\n',
+        )
+
+    status_heading = '## Status of completed and planned experiments\n\n'
+    start = text.index(status_heading)+len(status_heading)
+    stop = text.index('\n## ',start)
+    registry_page.write_text(
+        text[:start]+'\n\n'.join(sections)+'\n'+text[stop:],
+        encoding='utf-8', newline='\n',
+    )
 
 
 if __name__ == '__main__':

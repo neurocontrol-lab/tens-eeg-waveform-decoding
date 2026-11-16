@@ -1,5 +1,5 @@
 {
-  "updated": "2026-11-13",
+  "updated": "2026-11-16",
   "id_policy": "Each category has its own stable three-digit sequence. The project-wide E-number is the reference used in existing packages and reports. Preserve assigned numbers and include planned experiments when allocating the next number.",
   "category_prefixes": {
     "waveform_decoding": "WD",
@@ -463,6 +463,40 @@
         "output/rc008_task3_charge_prediction_strict_20261113"
       ],
       "legacy_package": null
+    },
+    {
+      "id": "E021",
+      "category_number": 8,
+      "title": "Task 4 naturalness-choice decoding from paired EEG",
+      "category": "waveform_decoding",
+      "dataset": "Task 4",
+      "status": "Planned",
+      "package": null,
+      "reserved_package": "experiments/waveform_decoding/e021_naturalness_choice_decoding",
+      "last_completed_run": null,
+      "findings": null,
+      "canonical_outputs": [],
+      "legacy_package": null,
+      "plan": {
+        "question": "Does post-stimulus EEG improve prediction of the participant's naturalness choice beyond stimulus and trial metadata and pre-stimulus EEG?",
+        "cohort": "All eligible paired Task 4 trials from participants 3-12 with verified trigger and choice alignment",
+        "target": "One prediction per pair using the participant's first-or-second choice in T4 Naturalness Value",
+        "features": "Second-minus-first post-trigger voltage in fixed 50 ms bins over contralateral centroparietal and parietal electrodes. Verify that the proposed 100-350 ms window ends before the response.",
+        "models": [
+          "Regularized logistic regression with ordered waveform identities and trial position",
+          "The same baseline plus EEG before the first pulse",
+          "The same baseline and pre-first-pulse EEG plus paired post-trigger EEG"
+        ],
+        "validation": "Identical leave-one-participant-out folds for all models. Fit scaling and any tuning on training data only.",
+        "primary_metric": "Change in held-out log loss when post-trigger EEG is added to the metadata and pre-trigger EEG model",
+        "secondary_metric": "Held-out balanced accuracy",
+        "sensitivity_analyses": [
+          "Examine repeated presentations of the same waveform pair in the same order within a participant where choices vary",
+          "Repeat the comparison after removing the terminal vote from each race-to-five block",
+          "Summarize the nominal-charge-matched triangle versus linear decrease subset as a secondary analysis"
+        ],
+        "rationale": "Whitson reported consistent naturalness choices and chosen-versus-unchosen EEG decoding (https://stars.library.ucf.edu/hut2024/661/). Collu et al. reported behavioral discrimination of triangle versus linear decrease under matched stimulation settings (https://doi.org/10.1038/s41598-023-28594-0)."
+      }
     }
   ]
 }

@@ -2,52 +2,60 @@
 
 Each category has its own three-digit sequence starting at `001`. The prefixes are **WD** for waveform decoding, **RC** for response characterization, **SQ** for signal quality, and **US** for uncertainty and sensitivity. The Reference column lists the `E` numbers used in package names and earlier reports. For example, **RC-006** is the EEG charge study referenced as **E017**. Task and cohort information belongs in the registry and run guide. Run all commands from the repository root.
 
-**Updated: 2026-11-13.** 16 completed, 2 planned, 2 in progress. Completed means the specified analysis finished; it does not imply a positive scientific result.
-
-## Status of completed and planned experiments
-
-| ID | Experiment | Category | Dataset | Status | Last completed run | Findings | Reference |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| WD-001 | [Sensor-space voltage baseline](waveform_decoding/e001_voltage_baseline/README.md) | waveform decoding | Task 4 | Completed | 2026-10-16 | [Results](../Docs/BASELINE_RESULTS.md) | E001 |
-| RC-001 | [Electrode, presentation-position and EEG-slope responses](response_characterization/e002_electrode_position_slope/README.md) | response characterization | Task 4 | Completed | 2026-10-21 | [Results](../Docs/TASK4_RESPONSE_DIAGNOSTICS.md) | E002 |
-| SQ-001 | [Voltage feature audit](signal_quality/e003_voltage_feature_audit/README.md) | signal quality | Task 4 | Completed | 2026-10-23 | [Results](../Docs/TASK4_FEATURE_AUDIT.md) | E003 |
-| WD-002 | [Waveform decoding with xDAWN spatial features](waveform_decoding/e004_xdawn_decoding/README.md) | waveform decoding | Task 4 | Completed | 2026-10-23 | [Results](../Docs/TASK4_XDAWN_RESULTS.md) | E004 |
-| WD-003 | [Waveform decoding with spectral and combined features](waveform_decoding/e005_spectral_decoding/README.md) | waveform decoding | Task 4 | Completed | 2026-10-23 | [Results](../Docs/TASK4_SPECTRAL_RESULTS.md) | E005 |
-| RC-002 | [Multiscale EEG response characterization](response_characterization/e006_multiscale_responses/README.md) | response characterization | Task 4 | Completed | 2026-10-23 | [Results](../Docs/TASK4_MULTISCALE_RESULTS.md) | E006 |
-| SQ-002 | [Minimal versus supplied preprocessing comparison](signal_quality/e007_preprocessing_comparison/README.md) | signal quality | Task 4 | Completed | 2026-10-23 | [Results](../Docs/TASK4_PREPROCESSING_COMPARISON.md) | E007 |
-| RC-003 | [Time-resolved waveform, position and interaction effects](response_characterization/e008_time_resolved_effects/README.md) | response characterization | Task 4 | Completed | 2026-10-23 | [Results](../Docs/TASK4_TIME_RESOLVED_RESULTS.md) | E008 |
-| US-001 | [Response uncertainty, earlier time coverage and sensitivity](uncertainty_and_sensitivity/e009_response_uncertainty_sensitivity/README.md) | uncertainty and sensitivity | Task 4 | Completed | 2026-10-24 | [Results](../Docs/TASK4_RESPONSE_FOLLOWUP.md) | E009 |
-| SQ-003 | [Simple-pipeline EEG visual inspection](signal_quality/e010_simple_visual_inspection/README.md) | signal quality | Task 4 | Completed | 2026-10-30 | [Results](../Docs/TASK4_VISUAL_INSPECTION.md) | E010 |
-| RC-004 | [Electrode-by-time-bin waveform repeatability](response_characterization/e011_electrode_bin_repeatability/README.md) | response characterization | Task 4 | Completed | 2026-10-30 | [Results](../Docs/E011_REPEATABILITY_RESULTS.md) | E011 |
-| WD-004 | Longer-window waveform decoding with LDA, RBF SVM and EEGNet | waveform decoding | Task 4 | Planned | - | - | E012 |
-| US-002 | Classifier sensitivity to known EEG patterns | uncertainty and sensitivity | Task 4 | Planned | - | - | E013 |
-| RC-005 | [All-electrode, alpha/beta power and calibrated xDAWN repeatability](response_characterization/e014_all_electrode_repeatability/README.md) | response characterization | Task 4 | Completed | 2026-10-30 | [Results](../Docs/E014_REPEATABILITY_RESULTS.md) | E014 |
-| WD-005 | [Position-specific multiscale repeatability-selected decoding](waveform_decoding/e015_position_repeatability_decoding/README.md) | waveform decoding | Task 4 | In progress | 2026-11-02 | [Results](../Docs/E015_OBSERVED_RESULTS.md) | E015 |
-| WD-006 | [One-versus-rest waveform detection on fixed E015 features](waveform_decoding/e016_one_vs_rest_decoding/README.md) | waveform decoding | Task 4 | In progress | 2026-11-02 | [Results](../Docs/E016_BINARY_RESULTS.md) | E016 |
-| RC-006 | [EEG response and nominal cathodic charge](response_characterization/e017_eeg_charge_relation/README.md) | response characterization | Task 3 | Completed | 2026-11-09 | [Results](../Docs/E017_TASK3_CHARGE_RESULTS.md) | E017 |
-| WD-007 | [Task 4 waveform decoding with nominal-charge adjustment](waveform_decoding/e018_nominal_charge_adjustment/README.md) | waveform decoding | Task 4 | Completed | 2026-11-13 | [Results](../Docs/WD007_NOMINAL_CHARGE_RESULTS.md) | E018 |
-| RC-007 | [Predict nominal Task 4 charge from EEG](response_characterization/e019_task4_charge_prediction/README.md) | response characterization | Task 4 | Completed | 2026-11-13 | [Results](../Docs/RC007_TASK4_CHARGE_PREDICTION.md) | E019 |
-| RC-008 | [Predict nominal Task 3 charge from EEG](response_characterization/e020_task3_charge_prediction/README.md) | response characterization | Task 3 | Completed | 2026-11-13 | [Results](../Docs/RC008_TASK3_CHARGE_PREDICTION.md) | E020 |
+**Updated: 2026-11-16.** 16 completed, 3 planned, 2 in progress. Completed means the specified analysis finished; it does not imply a positive scientific result.
 
 Planned IDs are reserved; no empty executable packages or results are created for them. Use Planned, In progress, Completed, Blocked or Superseded. Use Scheduled only when an execution has an actual schedule. Status labels do not start jobs or recurring automations.
 
-## Category directories
+## Status of completed and planned experiments
 
-### [Signal quality, preprocessing and feature audits](signal_quality/README.md)
+### [WD — Waveform and naturalness-choice decoding](waveform_decoding/README.md)
 
-What do recordings and feature matrices look like, and how do processing choices affect responses?
+Can EEG features predict the delivered waveform or the participant's choice between two stimuli on held-out data?
 
-### [Stimulus-aligned response characterization](response_characterization/README.md)
+| ID | Experiment | Dataset | Status | Last completed run | Findings | Reference |
+| --- | --- | --- | --- | --- | --- | --- |
+| WD-001 | [Sensor-space voltage baseline](waveform_decoding/e001_voltage_baseline/README.md) | Task 4 | Completed | 2026-10-16 | [Results](../Docs/BASELINE_RESULTS.md) | E001 |
+| WD-002 | [Waveform decoding with xDAWN spatial features](waveform_decoding/e004_xdawn_decoding/README.md) | Task 4 | Completed | 2026-10-23 | [Results](../Docs/TASK4_XDAWN_RESULTS.md) | E004 |
+| WD-003 | [Waveform decoding with spectral and combined features](waveform_decoding/e005_spectral_decoding/README.md) | Task 4 | Completed | 2026-10-23 | [Results](../Docs/TASK4_SPECTRAL_RESULTS.md) | E005 |
+| WD-004 | Longer-window waveform decoding with LDA, RBF SVM and EEGNet | Task 4 | Planned | - | - | E012 |
+| WD-005 | [Position-specific multiscale repeatability-selected decoding](waveform_decoding/e015_position_repeatability_decoding/README.md) | Task 4 | In progress | 2026-11-02 | [Results](../Docs/E015_OBSERVED_RESULTS.md) | E015 |
+| WD-006 | [One-versus-rest waveform detection on fixed E015 features](waveform_decoding/e016_one_vs_rest_decoding/README.md) | Task 4 | In progress | 2026-11-02 | [Results](../Docs/E016_BINARY_RESULTS.md) | E016 |
+| WD-007 | [Task 4 waveform decoding with nominal-charge adjustment](waveform_decoding/e018_nominal_charge_adjustment/README.md) | Task 4 | Completed | 2026-11-13 | [Results](../Docs/WD007_NOMINAL_CHARGE_RESULTS.md) | E018 |
+| WD-008 | Task 4 naturalness-choice decoding from paired EEG | Task 4 | Planned | - | - | E021 |
+
+### [RC — Stimulus-aligned response characterization](response_characterization/README.md)
 
 How do voltage and slope patterns vary with waveform, electrode, time and presentation position?
 
-### [Single-epoch waveform decoding](waveform_decoding/README.md)
+| ID | Experiment | Dataset | Status | Last completed run | Findings | Reference |
+| --- | --- | --- | --- | --- | --- | --- |
+| RC-001 | [Electrode, presentation-position and EEG-slope responses](response_characterization/e002_electrode_position_slope/README.md) | Task 4 | Completed | 2026-10-21 | [Results](../Docs/TASK4_RESPONSE_DIAGNOSTICS.md) | E002 |
+| RC-002 | [Multiscale EEG response characterization](response_characterization/e006_multiscale_responses/README.md) | Task 4 | Completed | 2026-10-23 | [Results](../Docs/TASK4_MULTISCALE_RESULTS.md) | E006 |
+| RC-003 | [Time-resolved waveform, position and interaction effects](response_characterization/e008_time_resolved_effects/README.md) | Task 4 | Completed | 2026-10-23 | [Results](../Docs/TASK4_TIME_RESOLVED_RESULTS.md) | E008 |
+| RC-004 | [Electrode-by-time-bin waveform repeatability](response_characterization/e011_electrode_bin_repeatability/README.md) | Task 4 | Completed | 2026-10-30 | [Results](../Docs/E011_REPEATABILITY_RESULTS.md) | E011 |
+| RC-005 | [All-electrode, alpha/beta power and calibrated xDAWN repeatability](response_characterization/e014_all_electrode_repeatability/README.md) | Task 4 | Completed | 2026-10-30 | [Results](../Docs/E014_REPEATABILITY_RESULTS.md) | E014 |
+| RC-006 | [EEG response and nominal cathodic charge](response_characterization/e017_eeg_charge_relation/README.md) | Task 3 | Completed | 2026-11-09 | [Results](../Docs/E017_TASK3_CHARGE_RESULTS.md) | E017 |
+| RC-007 | [Predict nominal Task 4 charge from EEG](response_characterization/e019_task4_charge_prediction/README.md) | Task 4 | Completed | 2026-11-13 | [Results](../Docs/RC007_TASK4_CHARGE_PREDICTION.md) | E019 |
+| RC-008 | [Predict nominal Task 3 charge from EEG](response_characterization/e020_task3_charge_prediction/README.md) | Task 3 | Completed | 2026-11-13 | [Results](../Docs/RC008_TASK3_CHARGE_PREDICTION.md) | E020 |
 
-Can EEG features predict the delivered waveform on held-out data?
+### [SQ — Signal quality, preprocessing and feature audits](signal_quality/README.md)
 
-### [Uncertainty and sensitivity](uncertainty_and_sensitivity/README.md)
+What do recordings and feature matrices look like, and how do processing choices affect responses?
+
+| ID | Experiment | Dataset | Status | Last completed run | Findings | Reference |
+| --- | --- | --- | --- | --- | --- | --- |
+| SQ-001 | [Voltage feature audit](signal_quality/e003_voltage_feature_audit/README.md) | Task 4 | Completed | 2026-10-23 | [Results](../Docs/TASK4_FEATURE_AUDIT.md) | E003 |
+| SQ-002 | [Minimal versus supplied preprocessing comparison](signal_quality/e007_preprocessing_comparison/README.md) | Task 4 | Completed | 2026-10-23 | [Results](../Docs/TASK4_PREPROCESSING_COMPARISON.md) | E007 |
+| SQ-003 | [Simple-pipeline EEG visual inspection](signal_quality/e010_simple_visual_inspection/README.md) | Task 4 | Completed | 2026-10-30 | [Results](../Docs/TASK4_VISUAL_INSPECTION.md) | E010 |
+
+### [US — Uncertainty and sensitivity](uncertainty_and_sensitivity/README.md)
 
 How uncertain are the summaries, and which specified reference effects can the tests recover?
+
+| ID | Experiment | Dataset | Status | Last completed run | Findings | Reference |
+| --- | --- | --- | --- | --- | --- | --- |
+| US-001 | [Response uncertainty, earlier time coverage and sensitivity](uncertainty_and_sensitivity/e009_response_uncertainty_sensitivity/README.md) | Task 4 | Completed | 2026-10-24 | [Results](../Docs/TASK4_RESPONSE_FOLLOWUP.md) | E009 |
+| US-002 | Classifier sensitivity to known EEG patterns | Task 4 | Planned | - | - | E013 |
 
 ## Run locations and historical provenance
 
