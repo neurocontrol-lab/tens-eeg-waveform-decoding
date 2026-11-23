@@ -21,7 +21,7 @@ Can EEG features predict the delivered waveform or the participant's choice betw
 | WD-005 | [Position-specific multiscale repeatability-selected decoding](waveform_decoding/e015_position_repeatability_decoding/README.md) | Task 4 | In progress | 2026-11-02 | [Results](../Docs/E015_OBSERVED_RESULTS.md) | E015 |
 | WD-006 | [One-versus-rest waveform detection on fixed E015 features](waveform_decoding/e016_one_vs_rest_decoding/README.md) | Task 4 | In progress | 2026-11-02 | [Results](../Docs/E016_BINARY_RESULTS.md) | E016 |
 | WD-007 | [Task 4 waveform decoding with nominal-charge adjustment](waveform_decoding/e018_nominal_charge_adjustment/README.md) | Task 4 | Completed | 2026-11-13 | [Results](../Docs/WD007_NOMINAL_CHARGE_RESULTS.md) | E018 |
-| WD-008 | [Participant-specific Task 4 naturalness-choice decoding](waveform_decoding/e021_naturalness_choice_decoding/README.md) | Task 4 | Completed | 2026-11-24 | [Results](../Docs/WD008_NATURALNESS_CHOICE_RESULTS.md) | E021 |
+| WD-008 | [Within-participant paired Task 4 naturalness decoding](waveform_decoding/e021_naturalness_choice_decoding/README.md) | Task 4 | Completed | 2026-11-24 | [Results](../Docs/WD008_NATURALNESS_CHOICE_RESULTS.md) | E021 |
 | WD-009 | [Triangle versus linear-decrease waveform decoding](waveform_decoding/e022_triangle_lindec_decoding/README.md) | Task 4 | Completed | 2026-11-23 | [Results](../Docs/WD009_TRIANGLE_LINDEC_RESULTS.md) | E022 |
 
 ### [RC — Stimulus-aligned response characterization](response_characterization/README.md)

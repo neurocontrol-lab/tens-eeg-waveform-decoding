@@ -1,88 +1,90 @@
-# WD-008 · Participant-specific naturalness-choice EEG decoding
+# WD-008 · Within-participant paired naturalness decoding
 
-The current question is whether an individual Task 4 presentation’s EEG predicts whether it was
-chosen as more natural, beyond waveform identities, trial order and pre-stimulation EEG.
-Labels come from Jason’s `T4 Naturalness Value`: 1 chooses the first presentation and 2 the second.
-For each presentation-specific classifier, chosen is encoded 1 and not chosen 0.
+Each observation is one original Task 4 two-stimulus trial. The model receives both post-stimulation
+EEG responses and predicts which stimulus the participant chose as more natural. Labels come from
+Jason’s `T4 Naturalness Value`: first chosen = 0, second chosen = 1.
 
-[Current results](../../../Docs/WD008_NATURALNESS_CHOICE_RESULTS.md) ·
+[Results](../../../Docs/WD008_NATURALNESS_CHOICE_RESULTS.md) ·
 [Interactive report](../../../Docs/Reports/WD-008/index.html)
 
-## Current design
+## Dataset and validation
 
-The revised analysis uses 622 eligible behavioral pairs (1,244 epochs) from participants 3–12.
-Each participant × presentation has separate fitted models. A pair contributes one epoch to each
-position dataset with complementary labels; the responses are not subtracted or pooled.
+The cohort contains 622 complete eligible behavioral pairs (1,244 response epochs) from participants
+3–12, retaining all five waveforms and all ten comparisons. Actual first/second responses are matched
+by pair ID. No artificial pairs are constructed from independently chosen and unchosen stimuli.
 
-Within a participant/position, the entire waveform comparison is held out, including any repeated
-blocks of that comparison. All preprocessing is fitted on the other comparison groups. Single-class
-test blocks are retained; scores pool held-out predictions across blocks before calculating each
-participant’s balanced accuracy. The common 622-pair cohort and original complete-pair QC are preserved.
-All 800 analysis/position/resolution/comparison folds were supported; none were discarded.
+Fit models separately for each participant. Hold out all blocks of an entire waveform comparison,
+keeping both responses in one observation. No model trains on another participant. Single-class test
+blocks remain in the dataset; participant scores pool all held-out predictions across comparisons.
+All 800 configuration/comparison folds were supported.
 
-## Features and models
+## Paired representations and features
 
-- All 62 electrodes, using fixed 50/100 ms voltage means over post 50–1,050 ms and pre −1,050 to −50 ms.
-  This yields 1,240/620 original features per period.
-- Instantaneous average reference and microvolt conversion; shared pair baseline −1,250 to −1,050 ms
-  before the first pulse. No temporal filtering or ICA. Finite-value/timestamp checks cover all channels;
-  this does not extend the inherited amplitude-rejection policy to all channels.
-- Training-only feature scaling, separate pre/post PCA retaining 90% variance, and training-only component scaling.
-- Fixed L2 logistic regression, C=1, no class weighting, supervised selection or hyperparameter search.
-- Twelve metadata features: five current-waveform and five opponent-waveform indicators, chronological
-  pair index and within-block index. No charge, choice history, terminal-vote flag, final block length
-  or response-derived predictor enters the models.
-- Seven models: training choice proportion, metadata, pre EEG, post EEG, metadata + pre,
-  metadata + post, and metadata + pre + post.
+- Primary: concatenate first-response and second-response features in presentation order.
+- Fixed comparison: subtract first-response features from second-response features, restoring the
+  original paired-difference representation.
+- Both post windows span 50–1,050 ms relative to their respective pulse. The pre-pair control uses
+  only −1,050 to −50 ms before the first pulse, before either stimulus.
+- All 62 electrodes in fixed 50/100 ms bins. Concatenated post features number 2,480/1,240;
+  differences and pre-pair controls number 1,240/620.
+- Instantaneous average reference and shared baseline −1,250 to −1,050 ms before the first pulse;
+  no temporal filtering or ICA. Original complete-pair QC and all-channel finite/timestamp checks remain.
+- Fit scaling, separate pre/post PCA retaining 90% variance, and component scaling on training pairs only.
+- Fixed L2 logistic regression C=1, without class weighting, tuning or supervised feature selection.
+- Metadata: five first-waveform and five second-waveform indicators, chronological pair index and
+  within-block index. No charge, prior choices, terminal-vote flag or final block length is used.
 
-The original terminal vote in each block is removed and all models are refitted for the sensitivity
-analysis (522 behavioral pairs). The new last trial is not relabeled as terminal.
+Seven models: training choice proportion, metadata alone, pre-pair EEG alone, paired post EEG alone,
+metadata + pre, metadata + paired post, and metadata + pre + paired post.
+
+The optional original-last-trial exclusion refits models on 522 pairs after dropping each block’s
+original final trial. This checks robustness to excluding those trials and losing training data;
+it does not correct for or remove the race-to-five stopping rule.
 
 ## Results and interpretation
 
-For full-data first presentations, standalone post EEG reached 50.90/51.29% BA at 50/100 ms resolution;
-second presentations reached 50.97/51.02%. Metadata alone reached 68.78% BA.
-Adding post EEG to metadata + pre changed first-position BA by +0.59/+0.33 percentage points and
-second-position BA by −1.12/−0.97 points; mean log loss worsened in all four full-data comparisons.
-No paired comparison survived Holm correction, including the terminal-vote sensitivity.
+Standalone paired post EEG reached 51.21/49.40% BA with concatenation and 55.45/55.17% with
+second-minus-first features (50/100 ms bins). Metadata alone reached 68.78% BA.
+Adding paired post EEG to metadata + pre changed BA by +1.08/−0.13 percentage points with
+concatenation and −1.12/−0.43 points with differences. No paired comparison survived Holm correction.
 
-Accuracy, balanced accuracy, both choice recalls, AUC, Brier score and log loss are saved per participant.
-Cohort means weight participants equally. Descriptive 10,000-resample participant bootstrap intervals
-condition on the fitted held-out predictions. Exact two-sided sign tests compare participant directions
-of change, omitting ties, for post versus pre and post added to metadata + pre. Holm correction covers
-32 tests (two contrasts × two metrics × two bin widths × two positions × two trial analyses).
-These are not individual above-chance tests or refitted label-permutation tests.
+Balanced accuracy averages first-choice and second-choice recall; its reference is 50%.
+Ordinary accuracy is the fraction of correctly predicted pair choices. Cohort means average separately
+fitted participant scores equally; there is no population model.
 
-Second-position pre EEG follows the first stimulus and can contain its response. The two positions
-share behavioral pairs and are not independent replications. Behavioral-response timestamps and physical
-current/trigger synchronization remain unavailable. The behavioral order audit provides context;
-it does not make the recorded choices incorrect. Metadata performance can reflect consistent preferences.
+Descriptive 10,000-resample participant bootstrap intervals condition on the fitted predictions.
+Exact two-sided participant sign tests compare BA and log-loss changes, omitting ties; Holm correction
+covers 32 tests across two contrasts, two metrics, two representations, two bin widths and two trial
+analyses. These are not individual above-chance tests or refitted label-permutation tests.
+
+The second post response can contain carryover, presentation and decision effects. Concatenated post
+inputs contain two one-second windows, while the pre-pair control contains one. Behavioral-response
+timestamps and physical delivery synchronization remain unavailable. The behavioral order audit
+provides context; recorded preference labels are not declared invalid.
 
 ## Run and saved outputs
 
 ```powershell
-& ./.venv/Scripts/python.exe -m experiments.waveform_decoding.e021_naturalness_choice_decoding.run_position
+& ./.venv/Scripts/python.exe -m experiments.waveform_decoding.e021_naturalness_choice_decoding.run_paired
 ```
 
-The current numerical run is `output/wd008_position_naturalness_20261124`; the independently verified
-cache is `output/wd008_position_feature_cache_20261124`. Outputs include `epoch_manifest.csv`,
-`predictions.csv`, `fold_audit.json`, `unsupported.json`, `config.json`, `summary.json` and `status.json`.
-Each fold audit records its training/test pair IDs, comparisons, participant, position and PCA dimensions.
-Use a fresh output directory for a rerun; verified feature caches may be reused.
+The numerical run is `output/wd008_paired_naturalness_20261124`. It verifies and reuses the all-electrode
+cache `output/wd008_position_feature_cache_20261124` without changing its feature values or source audit.
+Outputs include `pair_manifest.csv`, `predictions.csv`, `fold_audit.json`, `unsupported.json`, `config.json`,
+`summary.json` and `status.json`. Fold audits record training/test pair IDs, comparisons, participant,
+representation and PCA dimensions. Use a fresh output directory for a rerun.
 
 ```powershell
-& ./.venv/Scripts/python.exe -m experiments.publish_wd008_wd009_reports --output output/wd008_position_report_refresh
+& ./.venv/Scripts/python.exe -m experiments.publish_wd008_wd009_reports --output output/wd008_paired_report_refresh
 ```
 
-The publisher includes the revised position run by default. Pass `--position-run` for a different
-completed run or `--legacy-only` to reproduce the historical presentation without this revision.
-The current report publication record is `output/wd008_without_counts_table_20261124/publication_manifest.json`.
+The report publisher defaults to the paired run (`--paired-run` overrides it). Publication provenance
+is in `output/wd008_paired_publication_20261124/publication_manifest.json`.
 
-## Archived population analysis
+## Local archives
 
-The original command without `.run_position` fits the older leave-one-participant-out models.
-It is retained to reproduce `output/wd008_naturalness_baselined_20261123`, not as the current analysis.
-Its six-electrode, 100–350 ms features and second-minus-first representation differ from this revision;
-the new results are not a comparison changing validation alone. Archived inputs and predictions are
-unchanged, and their report is available in the interactive report’s collapsed archive and
-[the preserved version](https://github.com/neurocontrol-lab/tens-eeg-waveform-decoding/blob/5436f02/Docs/WD008_NATURALNESS_CHOICE_RESULTS.md).
+The superseded single-presentation run (`output/wd008_position_naturalness_20261124`) and population run
+(`output/wd008_naturalness_baselined_20261123`) are preserved unchanged locally. Their results and
+model panels are omitted from the shared report. The old `.run_position` and original package command
+remain available for reproduction; they are not the current analysis. Explicit `--position-run` or
+`--legacy-only` publisher options reproduce those older views if needed.

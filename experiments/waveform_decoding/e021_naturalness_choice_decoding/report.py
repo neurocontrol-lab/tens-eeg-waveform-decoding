@@ -123,6 +123,12 @@ def behavior_html(audit):
 
 
 def render_markdown(summary):
+    if 'paired_revision' in summary:
+        from .paired_report import render_markdown as paired_markdown
+        audit = [line.replace('**Further naturalness decoding is deferred.** Existing EEG results below are retained as exploratory results.',
+                              'The behavioral association provides context for the within-participant paired EEG analysis.')
+                 for line in behavior_markdown(summary.get('behavior_audit'))]
+        return paired_markdown(summary['paired_revision'])+'\n'+'\n'.join(audit)
     if 'position_revision' in summary:
         from .position_report import render_markdown as render_revision
         audit = behavior_markdown(summary.get('behavior_audit'))
@@ -272,11 +278,19 @@ def render_markdown(summary):
 
 def render_html(summary, figures=None):
     figures = figures or {}
-    shared = dict(summary, preference_explorer=figures.get('preference', {}))
+    paired = summary.get('paired_revision')
+    shared = (dict(paired_revision=paired, behavior_audit=summary.get('behavior_audit'),
+                   preference_explorer=figures.get('preference', {})) if paired else
+              dict(summary, preference_explorer=figures.get('preference', {})))
     data = json.dumps(shared, allow_nan=False).replace('<', '\\u003c')
     revision = summary.get('position_revision')
     audit = behavior_html(summary.get('behavior_audit'))
-    if revision:
+    if paired:
+        from .paired_report import HTML as revision_html, JS as revision_js, result_text
+        revision_html = revision_html.replace('__RESULTS__', escape(result_text(paired)))
+        audit = audit.replace('<p><strong>Further naturalness decoding is deferred.</strong> Existing fitted EEG results are retained below.</p>',
+                              '<p>The within-participant paired EEG tests below use these recorded choices with metadata and pre-pair EEG controls.</p>')
+    elif revision:
         from .position_report import HTML as revision_html, JS as revision_js
         from .position_report import result_sentences
         revision_html = revision_html.replace('__RESULTS__', escape(' '.join(result_sentences(revision))))
@@ -287,7 +301,10 @@ def render_html(summary, figures=None):
     def image_html(item):
         return (f'<figure><img src="{item["url"]}" alt="{escape(item["caption"])}">'
                 f'<figcaption>{escape(item["caption"])}</figcaption></figure>')
-    return (PAGE.replace('__SUMMARY__', data)
+    page = PAGE
+    if paired:
+        page = page.split('__LEGACY_START__')[0]+page.split('__LEGACY_END__')[1]
+    return (page.replace('__SUMMARY__', data)
             .replace('__REVISION__', revision_html).replace('__REVISION_JS__', revision_js)
             .replace('__LEGACY_START__', '<details id="legacy-analysis"><summary>Archived population analysis · superseded leave-one-participant-out models</summary><p>The following sections describe the earlier population analysis. The current participant-specific tests appear above.</p>' if revision else '')
             .replace('__LEGACY_END__', '</details>' if revision else '')
@@ -450,6 +467,7 @@ if(data.preference_explorer?.views){
  el('pref_opponent').addEventListener('change',preferenceDraw);
  preferenceMenus();
 }
+if(data.full){
 if(data.unbaselined_reference)el('adaptation').textContent=data.unbaselined_reference.reason+
  ' The initial unbaselined run is preserved locally. The feature and score inspection that prompted this change makes the adaptation exploratory.';
 el('coverage').textContent='WD-008 · '+data.date+' · '+data.full.pairs+' eligible pairs from '+data.full.participants+' participants';
@@ -502,6 +520,7 @@ function update(){
 el('analysis').addEventListener('change',updateParticipants);
 el('participant').addEventListener('change',update);
 updateParticipants();
+}
 </script></html>
 """
 

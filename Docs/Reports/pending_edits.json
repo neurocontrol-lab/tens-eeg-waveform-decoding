@@ -157,6 +157,14 @@
         "WD-008"
       ],
       "change": "Remove the Class support and prediction counts table from the interactive EEG section; retain result filters and behavioral audit."
+    },
+    {
+      "id": 19,
+      "status": "applied",
+      "reports": [
+        "WD-008"
+      ],
+      "change": "Restore actual paired-response naturalness models fitted within each participant; remove single-presentation and population results from the shared page, preserving local archives."
     }
   ],
   "applied_date": "2026-11-24",
@@ -169,7 +177,7 @@
     ],
     "javascript_errors": 0,
     "numerical_inputs_unchanged": true,
-    "report_generation": "output/wd008_without_counts_table_20261124",
+    "report_generation": "output/wd008_paired_publication_20261124",
     "preference_selector_views_checked": 25,
     "sign_tests": {
       "comparisons": 72,
@@ -186,6 +194,15 @@
       "holm_significant_005": 0,
       "browser_filter_combinations": 88,
       "archived_inputs_unchanged": true
+    },
+    "paired_naturalness": {
+      "pairs": 622,
+      "response_epochs": 1244,
+      "supported_folds": 800,
+      "unsupported": 0,
+      "cohort_sign_tests": 32,
+      "browser_filter_combinations": 88,
+      "archived_single_presentation_inputs_unchanged": true
     }
   }
 }

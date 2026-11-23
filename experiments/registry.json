@@ -467,7 +467,7 @@
     {
       "id": "E021",
       "category_number": 8,
-      "title": "Participant-specific Task 4 naturalness-choice decoding",
+      "title": "Within-participant paired Task 4 naturalness decoding",
       "category": "waveform_decoding",
       "dataset": "Task 4",
       "status": "Completed",
@@ -484,23 +484,63 @@
         "output/wd_reports_batch_20261124/WD-008",
         "output/wd_reports_settings_inference_final_20261124/WD-008",
         "output/wd008_position_naturalness_20261124",
-        "output/wd008_position_publication_20261124/WD-008"
+        "output/wd008_position_publication_20261124/WD-008",
+        "output/wd008_paired_naturalness_20261124",
+        "output/wd008_paired_publication_20261124/WD-008"
       ],
       "legacy_package": null,
       "plan": {
-        "target": "Chosen versus not chosen for the current individual presentation, from T4 Naturalness Value",
-        "cohort": "622 complete eligible behavioral pairs, 1244 epochs, participants 3-12; all five waveforms and all comparisons",
-        "validation": "Separate participant x presentation models; hold out all blocks of an entire waveform comparison; no cross-participant fitting",
-        "features": "All 62 electrodes, fixed 50/100 ms means across pre -1050 to -50 ms and post 50 to 1050 ms; training-only scaling, separate pre/post 90% PCA, component scaling",
-        "preprocessing": "Instantaneous average reference, common pair baseline -1250 to -1050 ms before first pulse; no temporal filter or ICA; archived complete-pair QC",
-        "models": "Fixed L2 logistic regression C=1 for metadata, pre/post EEG alone and combinations; training-proportion baseline",
-        "metadata": "Current and opponent waveform indicators, chronological pair index, within-block index; no charge or response-derived predictors",
-        "controls": "Separate pre EEG, metadata-only and incremental post EEG; original terminal votes removed and all fits repeated",
-        "inference": "Participant bootstrap intervals, exact sign tests of BA and log-loss changes; Holm across 32 comparisons; no individual above-chance inference",
-        "naturalness_followup": "Completed within-participant/position revision; older population models archived"
+        "target": "First stimulus chosen versus second stimulus chosen in each actual behavioral pair",
+        "cohort": "622 complete eligible pairs, 1244 response epochs, participants 3-12; all five waveforms",
+        "validation": "Separate within-participant models; hold out all blocks of an entire comparison; both responses stay together",
+        "features": "All 62 electrodes, 50/100 ms means; ordered first/second post concatenation primary, second-minus-first fixed comparison; first pre-pair EEG control",
+        "preprocessing": "Instantaneous average reference, shared pair baseline -1250 to -1050 ms before first pulse; no temporal filter or ICA",
+        "models": "Fixed L2 logistic regression C=1; training-only scaling, 90% pre/post PCA and component scaling",
+        "controls": "Training-proportion, metadata and pre-pair baselines; add paired post EEG; optional original-last-trial exclusion with refits",
+        "inference": "Participant bootstrap intervals; exact participant sign tests of BA/log-loss changes, Holm across 32 comparisons; no individual above-chance inference"
       },
       "publication": "Docs/Reports/WD-008/index.html",
       "completed_run": {
+        "directory": "output/wd008_paired_naturalness_20261124",
+        "eligible_pairs": 622,
+        "response_epochs": 1244,
+        "participants": 10,
+        "nonterminal_pairs": 522,
+        "channels": 62,
+        "representations": [
+          "concatenated",
+          "difference"
+        ],
+        "bin_widths_ms": [
+          50,
+          100
+        ],
+        "supported_folds": 800,
+        "unsupported_folds": 0,
+        "validation": "Within participant, comparison-held-out actual paired trials",
+        "results": "Concatenated post BA 51.21/49.40%; difference post BA 55.45/55.17%; metadata BA 68.78%; no corrected incremental benefit"
+      },
+      "behavior_audit": {
+        "summary": "output/wd008_behavior_audit_20261123/summary.json",
+        "trials": 623,
+        "primary_order_association_p": 4.5447472968430405e-05,
+        "interpretation": "Choices associate with presentation order under the conditional null assumptions; not evidence of incorrect behavioral entries or proof of physiological carryover. Revised tests retain labels and compare EEG with metadata/pre controls."
+      },
+      "report_update": {
+        "date": "2026-11-24",
+        "directory": "output/wd008_paired_publication_20261124/WD-008",
+        "source_models_refitted": true,
+        "figures": "Embedded scientific plots with standalone PNGs in the report-generation output",
+        "applied_edit_batch": "Docs/Reports/pending_edits.json",
+        "scope": "Actual paired within-participant fits replace single-presentation and population panels; archived numerical files preserved"
+      },
+      "research_origin": "Whitson naturalness-choice consistency and Dr. Rakhshan request for an independent pre/post EEG comparison. Behavior-only order audit is documented separately from the prior exploratory EEG fits.",
+      "archived_population_run": {
+        "directory": "output/wd008_naturalness_baselined_20261123",
+        "validation": "Leave one participant out; superseded for the revised within-participant question",
+        "numerical_inputs_unchanged": true
+      },
+      "archived_population_details": {
         "eligible_pairs": 622,
         "recorded_pairs": 623,
         "participants": 10,
@@ -520,25 +560,10 @@
         "inference": "Participant bootstrap intervals conditional on fixed held-out predictions; no permutation significance test",
         "naturalness_followup": "Deferred at the user request after the behavior-only order audit. Existing fitted results are preserved."
       },
-      "behavior_audit": {
-        "summary": "output/wd008_behavior_audit_20261123/summary.json",
-        "trials": 623,
-        "primary_order_association_p": 4.5447472968430405e-05,
-        "interpretation": "Choices associate with presentation order under the conditional null assumptions; not evidence of incorrect behavioral entries or proof of physiological carryover. Revised tests retain labels and compare EEG with metadata/pre controls."
-      },
-      "report_update": {
-        "date": "2026-11-24",
-        "directory": "output/wd008_without_counts_table_20261124/WD-008",
-        "source_models_refitted": true,
-        "figures": "Embedded scientific plots with standalone PNGs in the report-generation output",
-        "applied_edit_batch": "Docs/Reports/pending_edits.json",
-        "scope": "New participant-position naturalness fits; older WD-008 and all WD-009 numerical inputs preserved"
-      },
-      "research_origin": "Whitson naturalness-choice consistency and Dr. Rakhshan request for an independent pre/post EEG comparison. Behavior-only order audit is documented separately from the prior exploratory EEG fits.",
-      "archived_population_run": {
-        "directory": "output/wd008_naturalness_baselined_20261123",
-        "validation": "Leave one participant out; superseded for the revised within-participant question",
-        "numerical_inputs_unchanged": true
+      "archived_single_presentation_run": {
+        "directory": "output/wd008_position_naturalness_20261124",
+        "numerical_inputs_unchanged": true,
+        "shared_report_results_removed": true
       }
     },
     {

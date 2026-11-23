@@ -10,6 +10,7 @@ import pandas as pd
 from experiments.response_characterization.e017_eeg_charge_relation.extract import digest
 from experiments.waveform_decoding.e021_naturalness_choice_decoding import report as naturalness_report
 from experiments.waveform_decoding.e021_naturalness_choice_decoding import position_report
+from experiments.waveform_decoding.e021_naturalness_choice_decoding import paired_report
 from experiments.waveform_decoding.e022_triangle_lindec_decoding import report as waveform_report
 from experiments.waveform_decoding.e022_triangle_lindec_decoding.evaluate import summarize
 from experiments.waveform_decoding.e022_triangle_lindec_decoding.figures import wd008_figures, wd009_figures
@@ -20,8 +21,9 @@ def main():
     parser.add_argument('--wd008', type=Path, default=Path('output/wd008_naturalness_baselined_20261123'))
     parser.add_argument('--audit', type=Path, default=Path('output/wd008_behavior_audit_20261123'))
     parser.add_argument('--wd009', type=Path, default=Path('output/wd009_triangle_lindec_20261123'))
-    parser.add_argument('--position-run', type=Path, default=Path('output/wd008_position_naturalness_20261124'),
-                        help='Revised participant-specific naturalness run; use --legacy-only to omit it')
+    parser.add_argument('--position-run', type=Path, default=None,
+                        help='Explicitly reproduce the archived single-presentation report')
+    parser.add_argument('--paired-run', type=Path, default=Path('output/wd008_paired_naturalness_20261124'))
     parser.add_argument('--legacy-only', action='store_true')
     parser.add_argument('--output', type=Path, default=Path('output/wd008_wd009_plots_20261123'))
     args = parser.parse_args()
@@ -32,9 +34,10 @@ def main():
         args.wd009 / 'summary.json', args.wd009 / 'predictions.csv', args.wd009 / 'events.csv',
     ]
     if not args.legacy_only:
-        if not json.loads((args.position_run/'status.json').read_text())['complete']:
-            raise ValueError('The revised participant-specific run is incomplete')
-        inputs += [args.position_run/name for name in ('summary.json','predictions.csv','fold_audit.json','config.json')]
+        selected_run=args.position_run or args.paired_run
+        if not json.loads((selected_run/'status.json').read_text())['complete']:
+            raise ValueError('The selected participant-specific run is incomplete')
+        inputs += [selected_run/name for name in ('summary.json','predictions.csv','fold_audit.json','config.json')]
     before = {str(path): digest(path) for path in inputs}
     naturalness = json.loads((args.wd008 / 'summary.json').read_text())
     audit = json.loads((args.audit / 'summary.json').read_text())
@@ -63,9 +66,10 @@ def main():
     print('Render behavioral audit and historical naturalness figures', flush=True)
     naturalness_figures = wd008_figures(naturalness, audit, behavior, image_folder)
     if not args.legacy_only:
-        revised = json.loads((args.position_run/'summary.json').read_text())
-        revision_figures = position_report.scientific_figures(revised, image_folder)
-        naturalness['position_revision'] = position_report.public_summary(revised, revision_figures)
+        revised = json.loads((selected_run/'summary.json').read_text())
+        renderer=position_report if args.position_run else paired_report
+        revision_figures = renderer.scientific_figures(revised, image_folder)
+        naturalness['position_revision' if args.position_run else 'paired_revision'] = renderer.public_summary(revised, revision_figures)
     print('Render waveform decoding, participant and coverage figures', flush=True)
     waveform_figures = wd009_figures(waveform, events, image_folder)
     for experiment, summary, figures, renderer, filename in (
@@ -97,6 +101,7 @@ def main():
             Path('experiments/waveform_decoding/e022_triangle_lindec_decoding/figures.py'),
             Path('experiments/waveform_decoding/e022_triangle_lindec_decoding/evaluate.py'),
             Path(position_report.__file__),
+            Path(paired_report.__file__),
         ]},
         publication_sha256={f'Docs/Reports/{experiment}/index.html':
                             digest(Path(f'Docs/Reports/{experiment}/index.html'))
