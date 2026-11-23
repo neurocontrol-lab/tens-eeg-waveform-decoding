@@ -1,0 +1,141 @@
+{
+  "status": "applied",
+  "requested_date": "2026-11-24",
+  "reports": [
+    "WD-008",
+    "WD-009"
+  ],
+  "items": [
+    {
+      "id": 1,
+      "status": "applied",
+      "change": "Remove mentions of WD-009 from WD-008 and mentions of WD-008 from WD-009."
+    },
+    {
+      "id": 2,
+      "status": "applied",
+      "change": "Remove report prose describing instructions or suggestions from Mohsen."
+    },
+    {
+      "id": 3,
+      "status": "applied",
+      "change": "Review paragraph widths and wrapping that make body text end awkwardly in the middle of sections, including What the completed run covers in WD-008."
+    },
+    {
+      "id": 4,
+      "status": "applied",
+      "change": "Improve text-only sections, including Features and models, with clear subheadings or bold labels for each model."
+    },
+    {
+      "id": 5,
+      "status": "applied",
+      "reports": [
+        "WD-008"
+      ],
+      "change": "Use a plain-language explanation of the behavioral order-test p-value for a broad audience.",
+      "references": [
+        {
+          "title": "Jung (2014). Stratified Fisher's exact test and its sample size calculation. Biometrical Journal, 56, 129Ã¢â‚¬â€œ140.",
+          "url": "https://doi.org/10.1002/bimj.201300048",
+          "supports": "Exact conditional testing across stratified 2-by-2 tables."
+        },
+        {
+          "title": "SciPy fisher_exact documentation, Notes",
+          "url": "https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.fisher_exact.html",
+          "supports": "Hypergeometric cell-count distribution given fixed table margins and the existence of multiple two-sided p-value conventions."
+        }
+      ],
+      "method_note": "Our implementation combines block hypergeometric distributions and defines two-sided extremeness by absolute distance from the conditional mean. Distinguish this rule from package defaults. Applying the conditional randomization interpretation assumes exchangeable presentation-order assignments within each block under the null.",
+      "draft_paragraphs": [
+        "We checked whether presentation order was associated with participants' choices.",
+        "We kept each participant's waveform preferences fixed and calculated what could happen if the presentation orders were rearranged within each comparison block, preserving how often each waveform appeared first.",
+        "Across 623 trials, the first stimulus would be chosen about 321 times (51.6%) on average under the null model. It was actually chosen 284 times (45.6%)—about 37 fewer choices, a difference of 6 percentage points.",
+        "A difference this large, in either direction, occurs in about 1 out of 22,000 allowed order arrangements. This gives a p-value of approximately 0.000045.",
+        "This provides evidence that choices were associated with presentation order. The test alone cannot identify what caused that association."
+      ]
+    },
+    {
+      "id": 6,
+      "status": "applied",
+      "reports": [
+        "WD-008"
+      ],
+      "change": "Add the total of 623 trials, expected/observed percentages and effect size. Draw Observed: 284 as a solid orange line and Expected: 321 as a dashed dark-gray line, with direct labels."
+    },
+    {
+      "id": 7,
+      "status": "applied",
+      "reports": [
+        "WD-008"
+      ],
+      "change": "Add naturalness-choice views for all five waveforms, with opponent selection, first/second rates and participant vote counts."
+    },
+    {
+      "id": 8,
+      "status": "applied",
+      "reports": [
+        "WD-008"
+      ],
+      "change": "Make the orange observed-count line dashed as well, retaining the Observed: 284 label."
+    },
+    {
+      "id": 9,
+      "status": "applied",
+      "reports": [
+        "WD-008"
+      ],
+      "change": "Default the Compared with selector to All other waveforms."
+    },
+    {
+      "id": 10,
+      "status": "applied",
+      "reports": [
+        "WD-009"
+      ],
+      "change": "Link the interpretation to the specific WD-008 behavioral-order-audit section; supersedes the earlier blanket removal of report cross-references."
+    },
+    {
+      "id": 11,
+      "status": "applied",
+      "reports": [
+        "WD-009"
+      ],
+      "change": "Explain target, charge matching, comparison contexts and presentation filters near the top; explain the five-participant matched-charge cohort."
+    },
+    {
+      "id": 12,
+      "status": "applied",
+      "reports": [
+        "WD-009"
+      ],
+      "change": "Put post-minus-pre differences, intervals and cohort significance results in a separate table; remove repeated prose."
+    },
+    {
+      "id": 13,
+      "status": "applied",
+      "reports": [
+        "WD-009"
+      ],
+      "change": "Add exact two-sided participant sign tests of post versus pre, with Holm correction across all 72 comparisons; show p-values on cohort plots and dotted 50% references on participant BA plots."
+    }
+  ],
+  "applied_date": "2026-11-24",
+  "verification": {
+    "browser": "Headless Chrome",
+    "viewport_widths_px": [
+      1440,
+      768,
+      390
+    ],
+    "javascript_errors": 0,
+    "numerical_inputs_unchanged": true,
+    "report_generation": "output/wd_reports_settings_inference_final_20261124",
+    "preference_selector_views_checked": 25,
+    "sign_tests": {
+      "comparisons": 72,
+      "minimum_raw_p": 0.1796875,
+      "minimum_holm_p": 1.0,
+      "significant_holm_005": 0
+    }
+  }
+}

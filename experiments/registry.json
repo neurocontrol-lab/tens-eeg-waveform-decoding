@@ -1,5 +1,5 @@
 {
-  "updated": "2026-11-16",
+  "updated": "2026-11-24",
   "id_policy": "Each category has its own stable three-digit sequence. The project-wide E-number is the reference used in existing packages and reports. Preserve assigned numbers and include planned experiments when allocating the next number.",
   "category_prefixes": {
     "waveform_decoding": "WD",
@@ -470,12 +470,20 @@
       "title": "Task 4 naturalness-choice decoding from paired EEG",
       "category": "waveform_decoding",
       "dataset": "Task 4",
-      "status": "Planned",
-      "package": null,
+      "status": "Completed",
+      "package": "experiments/waveform_decoding/e021_naturalness_choice_decoding",
       "reserved_package": "experiments/waveform_decoding/e021_naturalness_choice_decoding",
-      "last_completed_run": null,
-      "findings": null,
-      "canonical_outputs": [],
+      "last_completed_run": "2026-11-23",
+      "findings": "Docs/WD008_NATURALNESS_CHOICE_RESULTS.md",
+      "canonical_outputs": [
+        "output/wd008_naturalness_baselined_20261123",
+        "output/wd008_naturalness_20261123",
+        "output/wd008_behavior_audit_20261123",
+        "output/wd008_audited_report_20261123",
+        "output/wd008_wd009_filtered_reports_20261123/WD-008",
+        "output/wd_reports_batch_20261124/WD-008",
+        "output/wd_reports_settings_inference_final_20261124/WD-008"
+      ],
       "legacy_package": null,
       "plan": {
         "question": "Does post-stimulus EEG improve prediction of the participant's naturalness choice beyond stimulus and trial metadata and pre-stimulus EEG?",
@@ -490,12 +498,119 @@
         "validation": "Identical leave-one-participant-out folds for all models. Fit scaling and any tuning on training data only.",
         "primary_metric": "Change in held-out log loss when post-trigger EEG is added to the metadata and pre-trigger EEG model",
         "secondary_metric": "Held-out balanced accuracy",
+        "standalone_eeg_comparison": {
+          "question": "How well does pre-stimulus EEG alone predict the pair choice, and how does it compare with post-stimulus EEG alone?",
+          "windows_ms_relative_to_first_trigger": {
+            "pre": [
+              -350,
+              -100
+            ],
+            "post": [
+              100,
+              350
+            ]
+          },
+          "evaluation": "Use first-presentation EEG for both models to avoid carryover from the first pulse in the second presentation's pre-trigger window. Check for overlap with the preceding trial or response. Compare regularized logistic regression models using the same electrodes, 50 ms bin features, eligible pairs, leave-one-participant-out folds, and held-out metrics. Report both absolute scores and their difference."
+        },
         "sensitivity_analyses": [
           "Examine repeated presentations of the same waveform pair in the same order within a participant where choices vary",
           "Repeat the comparison after removing the terminal vote from each race-to-five block",
           "Summarize the nominal-charge-matched triangle versus linear decrease subset as a secondary analysis"
         ],
         "rationale": "Whitson reported consistent naturalness choices and chosen-versus-unchosen EEG decoding (https://stars.library.ucf.edu/hut2024/661/). Collu et al. reported behavioral discrimination of triangle versus linear decrease under matched stimulation settings (https://doi.org/10.1038/s41598-023-28594-0)."
+      },
+      "publication": "Docs/Reports/WD-008/index.html",
+      "completed_run": {
+        "eligible_pairs": 622,
+        "recorded_pairs": 623,
+        "participants": 10,
+        "nonterminal_pairs": 522,
+        "matched_triangle_lindec_pairs": 33,
+        "channels": [
+          "C4",
+          "CP2",
+          "CP4",
+          "CP6",
+          "P2",
+          "P4"
+        ],
+        "classifier": "Logistic regression with fixed C=1 and training-only scaling",
+        "preprocessing_adaptation": "A common -550 to -350 ms first-pulse baseline was added after the initial unbaselined run revealed large participant-specific DC offsets. Both runs are preserved.",
+        "response_timing": "Response timestamps are unavailable; a pre-response endpoint cannot be confirmed.",
+        "inference": "Participant bootstrap intervals conditional on fixed held-out predictions; no permutation significance test",
+        "naturalness_followup": "Deferred at the user request after the behavior-only order audit. Existing fitted results are preserved."
+      },
+      "behavior_audit": {
+        "summary": "output/wd008_behavior_audit_20261123/summary.json",
+        "trials": 623,
+        "primary_order_association_p": 4.5447472968430405e-05,
+        "interpretation": "An order association is supported under the conditional randomization assumptions. This does not establish incorrect log entries, physiological carryover or unusable second-presentation EEG."
+      },
+      "report_update": {
+        "date": "2026-11-24",
+        "directory": "output/wd_reports_settings_inference_final_20261124/WD-008",
+        "source_models_refitted": false,
+        "figures": "Embedded scientific plots with standalone PNGs in the report-generation output",
+        "applied_edit_batch": "Docs/Reports/pending_edits.json"
+      },
+      "research_origin": "Whitson naturalness-choice consistency and Dr. Rakhshan request for an independent pre/post EEG comparison. Behavior-only order audit is documented separately from the prior exploratory EEG fits."
+    },
+    {
+      "id": "E022",
+      "category_number": 9,
+      "title": "Triangle versus linear-decrease waveform decoding",
+      "category": "waveform_decoding",
+      "dataset": "Task 4",
+      "status": "Completed",
+      "package": "experiments/waveform_decoding/e022_triangle_lindec_decoding",
+      "reserved_package": "experiments/waveform_decoding/e022_triangle_lindec_decoding",
+      "last_completed_run": "2026-11-23",
+      "findings": "Docs/WD009_TRIANGLE_LINDEC_RESULTS.md",
+      "canonical_outputs": [
+        "output/wd009_triangle_lindec_20261123",
+        "output/wd008_wd009_filtered_reports_20261123/WD-009",
+        "output/wd_reports_batch_20261124/WD-009",
+        "output/wd_reports_settings_inference_final_20261124/WD-009"
+      ],
+      "legacy_package": null,
+      "publication": "Docs/Reports/WD-009/index.html",
+      "plan": {
+        "target": "Triangle versus LinDec identity from triggers 241 and 242",
+        "cohort": "501 eligible epochs, 10 participants; 126 direct-pair epochs, 66 nominal-charge-matched direct-pair epochs",
+        "validation": "Separate participant x presentation models; whole comparison groups held out",
+        "features": "All 62 electrodes in 50 or 100 ms bins over post 50-1050 ms and pre -1050 to -50 ms",
+        "preprocessing": "Instantaneous 62-channel average reference, shared pair baseline -1250 to -1050 ms before first pulse; no temporal filtering or ICA",
+        "models": [
+          "Training-fold PCA (90% variance) plus shrinkage LDA",
+          "Training-fold PCA plus linear SVM",
+          "Linear SVM without PCA"
+        ],
+        "subset_policy": "Direct and matched-charge results reuse predictions from the fold that holds out the entire direct comparison. Charge is excluded from classifier inputs.",
+        "inference": "Descriptive participant bootstrap intervals and exact two-sided participant sign tests of post versus pre BA; Holm correction across all 72 subset/position/configuration tests. No label-permutation refits or individual above-chance tests."
+      },
+      "report_update": {
+        "date": "2026-11-24",
+        "directory": "output/wd_reports_settings_inference_final_20261124/WD-009",
+        "source_models_refitted": false,
+        "figures": "Embedded scientific plots with standalone PNGs in the report-generation output",
+        "applied_edit_batch": "Docs/Reports/pending_edits.json",
+        "cohort_significance": {
+          "tests": 72,
+          "minimum_raw_p": 0.1796875,
+          "minimum_holm_p": 1.0,
+          "significant_holm_005": 0
+        }
+      },
+      "research_origin": "Collu et al., Scientific Reports 2023: 70% median behavioral discrimination of Triangle versus LinDec at matched electrical settings. This experiment tests EEG waveform identity. https://doi.org/10.1038/s41598-023-28594-0",
+      "evaluation_views": {
+        "all_context_epochs": 501,
+        "matched_all_context_epochs": 247,
+        "direct_pair_epochs": 126,
+        "matched_direct_pair_epochs": 66,
+        "other_pair_epochs": 375,
+        "matched_other_pair_epochs": 181,
+        "charge_matching_unit": "Participant x presentation",
+        "context_filter": "All, direct-only, or other-pair-only; selects held-out predictions"
       }
     }
   ]

@@ -2,7 +2,7 @@
 
 Each category has its own three-digit sequence starting at `001`. The prefixes are **WD** for waveform decoding, **RC** for response characterization, **SQ** for signal quality, and **US** for uncertainty and sensitivity. The Reference column lists the `E` numbers used in package names and earlier reports. For example, **RC-006** is the EEG charge study referenced as **E017**. Task and cohort information belongs in the registry and run guide. Run all commands from the repository root.
 
-**Updated: 2026-11-16.** 16 completed, 3 planned, 2 in progress. Completed means the specified analysis finished; it does not imply a positive scientific result.
+**Updated: 2026-11-24.** 18 completed, 2 planned, 2 in progress. Completed means the specified analysis finished; it does not imply a positive scientific result.
 
 Planned IDs are reserved; no empty executable packages or results are created for them. Use Planned, In progress, Completed, Blocked or Superseded. Use Scheduled only when an execution has an actual schedule. Status labels do not start jobs or recurring automations.
 
@@ -21,7 +21,8 @@ Can EEG features predict the delivered waveform or the participant's choice betw
 | WD-005 | [Position-specific multiscale repeatability-selected decoding](waveform_decoding/e015_position_repeatability_decoding/README.md) | Task 4 | In progress | 2026-11-02 | [Results](../Docs/E015_OBSERVED_RESULTS.md) | E015 |
 | WD-006 | [One-versus-rest waveform detection on fixed E015 features](waveform_decoding/e016_one_vs_rest_decoding/README.md) | Task 4 | In progress | 2026-11-02 | [Results](../Docs/E016_BINARY_RESULTS.md) | E016 |
 | WD-007 | [Task 4 waveform decoding with nominal-charge adjustment](waveform_decoding/e018_nominal_charge_adjustment/README.md) | Task 4 | Completed | 2026-11-13 | [Results](../Docs/WD007_NOMINAL_CHARGE_RESULTS.md) | E018 |
-| WD-008 | Task 4 naturalness-choice decoding from paired EEG | Task 4 | Planned | - | - | E021 |
+| WD-008 | [Task 4 naturalness-choice decoding from paired EEG](waveform_decoding/e021_naturalness_choice_decoding/README.md) | Task 4 | Completed | 2026-11-23 | [Results](../Docs/WD008_NATURALNESS_CHOICE_RESULTS.md) | E021 |
+| WD-009 | [Triangle versus linear-decrease waveform decoding](waveform_decoding/e022_triangle_lindec_decoding/README.md) | Task 4 | Completed | 2026-11-23 | [Results](../Docs/WD009_TRIANGLE_LINDEC_RESULTS.md) | E022 |
 
 ### [RC — Stimulus-aligned response characterization](response_characterization/README.md)
 
