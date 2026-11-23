@@ -467,13 +467,13 @@
     {
       "id": "E021",
       "category_number": 8,
-      "title": "Task 4 naturalness-choice decoding from paired EEG",
+      "title": "Participant-specific Task 4 naturalness-choice decoding",
       "category": "waveform_decoding",
       "dataset": "Task 4",
       "status": "Completed",
       "package": "experiments/waveform_decoding/e021_naturalness_choice_decoding",
       "reserved_package": "experiments/waveform_decoding/e021_naturalness_choice_decoding",
-      "last_completed_run": "2026-11-23",
+      "last_completed_run": "2026-11-24",
       "findings": "Docs/WD008_NATURALNESS_CHOICE_RESULTS.md",
       "canonical_outputs": [
         "output/wd008_naturalness_baselined_20261123",
@@ -482,42 +482,22 @@
         "output/wd008_audited_report_20261123",
         "output/wd008_wd009_filtered_reports_20261123/WD-008",
         "output/wd_reports_batch_20261124/WD-008",
-        "output/wd_reports_settings_inference_final_20261124/WD-008"
+        "output/wd_reports_settings_inference_final_20261124/WD-008",
+        "output/wd008_position_naturalness_20261124",
+        "output/wd008_position_publication_20261124/WD-008"
       ],
       "legacy_package": null,
       "plan": {
-        "question": "Does post-stimulus EEG improve prediction of the participant's naturalness choice beyond stimulus and trial metadata and pre-stimulus EEG?",
-        "cohort": "All eligible paired Task 4 trials from participants 3-12 with verified trigger and choice alignment",
-        "target": "One prediction per pair using the participant's first-or-second choice in T4 Naturalness Value",
-        "features": "Second-minus-first post-trigger voltage in fixed 50 ms bins over contralateral centroparietal and parietal electrodes. Verify that the proposed 100-350 ms window ends before the response.",
-        "models": [
-          "Regularized logistic regression with ordered waveform identities and trial position",
-          "The same baseline plus EEG before the first pulse",
-          "The same baseline and pre-first-pulse EEG plus paired post-trigger EEG"
-        ],
-        "validation": "Identical leave-one-participant-out folds for all models. Fit scaling and any tuning on training data only.",
-        "primary_metric": "Change in held-out log loss when post-trigger EEG is added to the metadata and pre-trigger EEG model",
-        "secondary_metric": "Held-out balanced accuracy",
-        "standalone_eeg_comparison": {
-          "question": "How well does pre-stimulus EEG alone predict the pair choice, and how does it compare with post-stimulus EEG alone?",
-          "windows_ms_relative_to_first_trigger": {
-            "pre": [
-              -350,
-              -100
-            ],
-            "post": [
-              100,
-              350
-            ]
-          },
-          "evaluation": "Use first-presentation EEG for both models to avoid carryover from the first pulse in the second presentation's pre-trigger window. Check for overlap with the preceding trial or response. Compare regularized logistic regression models using the same electrodes, 50 ms bin features, eligible pairs, leave-one-participant-out folds, and held-out metrics. Report both absolute scores and their difference."
-        },
-        "sensitivity_analyses": [
-          "Examine repeated presentations of the same waveform pair in the same order within a participant where choices vary",
-          "Repeat the comparison after removing the terminal vote from each race-to-five block",
-          "Summarize the nominal-charge-matched triangle versus linear decrease subset as a secondary analysis"
-        ],
-        "rationale": "Whitson reported consistent naturalness choices and chosen-versus-unchosen EEG decoding (https://stars.library.ucf.edu/hut2024/661/). Collu et al. reported behavioral discrimination of triangle versus linear decrease under matched stimulation settings (https://doi.org/10.1038/s41598-023-28594-0)."
+        "target": "Chosen versus not chosen for the current individual presentation, from T4 Naturalness Value",
+        "cohort": "622 complete eligible behavioral pairs, 1244 epochs, participants 3-12; all five waveforms and all comparisons",
+        "validation": "Separate participant x presentation models; hold out all blocks of an entire waveform comparison; no cross-participant fitting",
+        "features": "All 62 electrodes, fixed 50/100 ms means across pre -1050 to -50 ms and post 50 to 1050 ms; training-only scaling, separate pre/post 90% PCA, component scaling",
+        "preprocessing": "Instantaneous average reference, common pair baseline -1250 to -1050 ms before first pulse; no temporal filter or ICA; archived complete-pair QC",
+        "models": "Fixed L2 logistic regression C=1 for metadata, pre/post EEG alone and combinations; training-proportion baseline",
+        "metadata": "Current and opponent waveform indicators, chronological pair index, within-block index; no charge or response-derived predictors",
+        "controls": "Separate pre EEG, metadata-only and incremental post EEG; original terminal votes removed and all fits repeated",
+        "inference": "Participant bootstrap intervals, exact sign tests of BA and log-loss changes; Holm across 32 comparisons; no individual above-chance inference",
+        "naturalness_followup": "Completed within-participant/position revision; older population models archived"
       },
       "publication": "Docs/Reports/WD-008/index.html",
       "completed_run": {
@@ -544,16 +524,22 @@
         "summary": "output/wd008_behavior_audit_20261123/summary.json",
         "trials": 623,
         "primary_order_association_p": 4.5447472968430405e-05,
-        "interpretation": "An order association is supported under the conditional randomization assumptions. This does not establish incorrect log entries, physiological carryover or unusable second-presentation EEG."
+        "interpretation": "Choices associate with presentation order under the conditional null assumptions; not evidence of incorrect behavioral entries or proof of physiological carryover. Revised tests retain labels and compare EEG with metadata/pre controls."
       },
       "report_update": {
         "date": "2026-11-24",
-        "directory": "output/wd_reports_settings_inference_final_20261124/WD-008",
-        "source_models_refitted": false,
+        "directory": "output/wd008_without_counts_table_20261124/WD-008",
+        "source_models_refitted": true,
         "figures": "Embedded scientific plots with standalone PNGs in the report-generation output",
-        "applied_edit_batch": "Docs/Reports/pending_edits.json"
+        "applied_edit_batch": "Docs/Reports/pending_edits.json",
+        "scope": "New participant-position naturalness fits; older WD-008 and all WD-009 numerical inputs preserved"
       },
-      "research_origin": "Whitson naturalness-choice consistency and Dr. Rakhshan request for an independent pre/post EEG comparison. Behavior-only order audit is documented separately from the prior exploratory EEG fits."
+      "research_origin": "Whitson naturalness-choice consistency and Dr. Rakhshan request for an independent pre/post EEG comparison. Behavior-only order audit is documented separately from the prior exploratory EEG fits.",
+      "archived_population_run": {
+        "directory": "output/wd008_naturalness_baselined_20261123",
+        "validation": "Leave one participant out; superseded for the revised within-participant question",
+        "numerical_inputs_unchanged": true
+      }
     },
     {
       "id": "E022",

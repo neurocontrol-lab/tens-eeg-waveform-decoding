@@ -117,6 +117,46 @@
         "WD-009"
       ],
       "change": "Add exact two-sided participant sign tests of post versus pre, with Holm correction across all 72 comparisons; show p-values on cohort plots and dotted 50% references on participant BA plots."
+    },
+    {
+      "id": 14,
+      "status": "applied",
+      "reports": [
+        "WD-008"
+      ],
+      "change": "Run revised participant/position naturalness decoders with all-electrode 50/100 ms PCA features, metadata/pre controls and terminal-vote sensitivity; present these first and archive the prior population models."
+    },
+    {
+      "id": 15,
+      "status": "applied",
+      "reports": [
+        "WD-008"
+      ],
+      "change": "Remove Revised from the EEG section heading and move the section below the behavioral audit and waveform-preference plots."
+    },
+    {
+      "id": 16,
+      "status": "applied",
+      "reports": [
+        "WD-008"
+      ],
+      "change": "Explain the trial, terminal-vote, presentation, bin-width and participant filters next to the controls, including 622/522 pair counts, refitting and cohort plot scope."
+    },
+    {
+      "id": 17,
+      "status": "applied",
+      "reports": [
+        "WD-008"
+      ],
+      "change": "Name the incremental contrast explicitly: Metadata + pre + post EEG versus metadata + pre EEG."
+    },
+    {
+      "id": 18,
+      "status": "applied",
+      "reports": [
+        "WD-008"
+      ],
+      "change": "Remove the Class support and prediction counts table from the interactive EEG section; retain result filters and behavioral audit."
     }
   ],
   "applied_date": "2026-11-24",
@@ -129,13 +169,23 @@
     ],
     "javascript_errors": 0,
     "numerical_inputs_unchanged": true,
-    "report_generation": "output/wd_reports_settings_inference_final_20261124",
+    "report_generation": "output/wd008_without_counts_table_20261124",
     "preference_selector_views_checked": 25,
     "sign_tests": {
       "comparisons": 72,
       "minimum_raw_p": 0.1796875,
       "minimum_holm_p": 1.0,
       "significant_holm_005": 0
+    },
+    "revised_naturalness": {
+      "pairs": 622,
+      "epochs": 1244,
+      "supported_folds": 800,
+      "unsupported_folds": 0,
+      "cohort_sign_tests": 32,
+      "holm_significant_005": 0,
+      "browser_filter_combinations": 88,
+      "archived_inputs_unchanged": true
     }
   }
 }

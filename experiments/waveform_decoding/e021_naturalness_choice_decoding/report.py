@@ -123,6 +123,16 @@ def behavior_html(audit):
 
 
 def render_markdown(summary):
+    if 'position_revision' in summary:
+        from .position_report import render_markdown as render_revision
+        audit = behavior_markdown(summary.get('behavior_audit'))
+        audit = [line.replace('**Further naturalness decoding is deferred.** Existing EEG results below are retained as exploratory results.',
+                             'The within-participant test is reported above. The order association is retained as behavioral context.')
+                 for line in audit]
+        return (render_revision(summary['position_revision'])+'\n'+'\n'.join(audit)+
+                '\n## Archived population analysis\n\nThe earlier leave-one-participant-out fits are superseded for the current research question. '
+                'They remain available in the interactive report’s collapsed archive and '
+                '[the preserved report version](https://github.com/neurocontrol-lab/tens-eeg-waveform-decoding/blob/5436f02/Docs/WD008_NATURALNESS_CHOICE_RESULTS.md).\n')
     full = summary['full']
     lines = [
         '# WD-008. Task 4 naturalness-choice decoding',
@@ -264,11 +274,24 @@ def render_html(summary, figures=None):
     figures = figures or {}
     shared = dict(summary, preference_explorer=figures.get('preference', {}))
     data = json.dumps(shared, allow_nan=False).replace('<', '\\u003c')
+    revision = summary.get('position_revision')
+    audit = behavior_html(summary.get('behavior_audit'))
+    if revision:
+        from .position_report import HTML as revision_html, JS as revision_js
+        from .position_report import result_sentences
+        revision_html = revision_html.replace('__RESULTS__', escape(' '.join(result_sentences(revision))))
+        audit = audit.replace('<p><strong>Further naturalness decoding is deferred.</strong> Existing fitted EEG results are retained below.</p>',
+                              '<p>The participant-specific EEG tests below retain the recorded choices and compare EEG against metadata and pre-stimulation controls.</p>')
+    else:
+        revision_html = revision_js = ''
     def image_html(item):
         return (f'<figure><img src="{item["url"]}" alt="{escape(item["caption"])}">'
                 f'<figcaption>{escape(item["caption"])}</figcaption></figure>')
     return (PAGE.replace('__SUMMARY__', data)
-            .replace('__AUDIT__', behavior_html(summary.get('behavior_audit')))
+            .replace('__REVISION__', revision_html).replace('__REVISION_JS__', revision_js)
+            .replace('__LEGACY_START__', '<details id="legacy-analysis"><summary>Archived population analysis · superseded leave-one-participant-out models</summary><p>The following sections describe the earlier population analysis. The current participant-specific tests appear above.</p>' if revision else '')
+            .replace('__LEGACY_END__', '</details>' if revision else '')
+            .replace('__AUDIT__', audit)
             .replace('__BEHAVIOR_FIGURES__', ''.join(image_html(item) for item in figures.get('behavior', [])))
             .replace('__EEG_FIGURE__', ''.join(image_html(item) for item in figures.get('eeg', []))))
 
@@ -320,6 +343,8 @@ __BEHAVIOR_FIGURES__
 <thead><tr><th>Participant</th><th>Chosen when first / presentations</th>
 <th>Chosen when second / presentations</th></tr></thead><tbody id="preference_counts"></tbody>
 </table></div></details></section>
+__REVISION__
+__LEGACY_START__
 <p id="coverage"></p><p>Predict which of two stimuli a participant chose as more natural.
 Each pair is held out with its participant. Metadata means waveform identities and trial order.</p>
 <section><h2>What the completed run covers</h2>
@@ -379,7 +404,7 @@ The primary paired features include second-pulse carryover. The standalone pre/p
 <p>Nominal charge defines the matched secondary subset and does not enter model features.
 The varying-choice subset is selected descriptively using observed choices.
 No permutation significance test was run.</p>
-<p id="adaptation"></p></section></main>
+<p id="adaptation"></p></section>__LEGACY_END__</main>
 <script type="application/json" id="data">__SUMMARY__</script>
 <script>
 const data=JSON.parse(document.getElementById('data').textContent);
@@ -387,6 +412,7 @@ const el=id=>document.getElementById(id);
 const pct=x=>x===null?'—':(100*x).toFixed(2)+'%';
 const number=x=>x===null?'—':x.toFixed(4);
 const signed=x=>(x>=0?'+':'')+x.toFixed(4);
+__REVISION_JS__
 function preferenceMenus(){
  const explorer=data.preference_explorer;
  const target=el('pref_waveform').value,previous=el('pref_opponent').value;

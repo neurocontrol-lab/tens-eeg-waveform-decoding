@@ -1,7 +1,7 @@
 # Shared analysis reports
 
 - [WD-009 triangle versus linear-decrease decoding](WD-009/index.html) shows dedicated waveform-identity models for each participant and presentation, with all-electrode PCA, LDA and SVM comparisons and nominal-charge-matched evaluation. [Findings](../WD009_TRIANGLE_LINDEC_RESULTS.md)
-- [WD-008 naturalness-choice decoding and behavioral audit](WD-008/index.html) documents the order association and the decision to defer further naturalness decoding. Earlier EEG fits and pre-stimulation controls are preserved. [Findings](../WD008_NATURALNESS_CHOICE_RESULTS.md)
+- [WD-008 naturalness-choice decoding and behavioral audit](WD-008/index.html) presents revised participant-specific, presentation-separated models with all-electrode PCA, metadata/pre EEG controls and terminal-vote sensitivity. The behavioral order audit and archived population fits are preserved. [Findings](../WD008_NATURALNESS_CHOICE_RESULTS.md)
 
 WD-008 and WD-009 include embedded PNG figures and work offline as individual HTML files. WD-009 has
 independent nominal-charge and comparison-context filters, including other-pair-only views. Rebuild both
