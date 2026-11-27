@@ -45,6 +45,9 @@ def refresh(root=ROOT):
                 package_path = entry['package'].removeprefix('experiments/')
                 central_title = f'[{central_title}]({package_path}/README.md)'
                 category_title = f'[{category_title}]({Path(package_path).name}/README.md)'
+            elif entry.get('proposal'):
+                central_title = f'[{central_title}](../{entry["proposal"]})'
+                category_title = f'[{category_title}](../../{entry["proposal"]})'
             dataset, status = entry['dataset'], entry['status']
             last_run = entry['last_completed_run'] or '-'
             findings = f'[Results](../{entry["findings"]})' if entry['findings'] else '-'

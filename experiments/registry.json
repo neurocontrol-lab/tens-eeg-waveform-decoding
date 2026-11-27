@@ -1,5 +1,5 @@
 {
-  "updated": "2026-11-24",
+  "updated": "2026-11-27",
   "id_policy": "Each category has its own stable three-digit sequence. The project-wide E-number is the reference used in existing packages and reports. Preserve assigned numbers and include planned experiments when allocating the next number.",
   "category_prefixes": {
     "waveform_decoding": "WD",
@@ -622,6 +622,72 @@
         "matched_other_pair_epochs": 181,
         "charge_matching_unit": "Participant x presentation",
         "context_filter": "All, direct-only, or other-pair-only; selects held-out predictions"
+      }
+    },
+    {
+      "id": "E023",
+      "category_number": 9,
+      "title": "Regional hand-map responses to stimulation and EEG",
+      "category": "response_characterization",
+      "dataset": "Task 3",
+      "status": "Planned",
+      "package": null,
+      "reserved_package": "experiments/response_characterization/e023_regional_percept_map",
+      "last_completed_run": null,
+      "findings": null,
+      "canonical_outputs": [],
+      "legacy_package": null,
+      "proposal": "Docs/RC009_REGIONAL_PERCEPT_PROPOSAL.md",
+      "plan": {
+        "outcome": "One landmark-defined regional marked-area vector per verified report; all regions share the whole-template denominator",
+        "hypothesis_dose": "Within participant and waveform, greater amplitude/nominal cathodic charge may increase total coverage through one or more regions",
+        "hypothesis_distribution": "Dose/shape may change anatomical recruitment or produce expansion within stable regions; no universal shift assumed",
+        "hypothesis_eeg": "Post EEG may improve regional-vector prediction beyond stimulation settings, chronological order and pre EEG; null result plausible",
+        "secondary": "EEG-dose relations are an exploratory consistency check linked to prior RC-006/RC-008 studies",
+        "identifiability": "Fixed 400-us cathodic width; amplitude and nominal charge proportional within waveform, so no independent PW or separate within-waveform charge/current effects",
+        "audit_first": "Verify image/CSV/XDF joins, failures, template/region masks, extra amplitude levels, repeated files and regional reliability before modeling",
+        "controls": "Participant/waveform/dose/order; pre-stimulus EEG; stimulus-only baseline; blocked held-out validation and training-only transforms",
+        "stage": "Proposal only; no image segmentation, hypothesis tests or model fitting performed"
+      }
+    },
+    {
+      "id": "E024",
+      "category_number": 10,
+      "title": "Within-block Task 3 response stability and temporal generalization",
+      "category": "response_characterization",
+      "dataset": "Task 3",
+      "status": "Planned",
+      "package": null,
+      "reserved_package": "experiments/response_characterization/e024_temporal_response_stability",
+      "last_completed_run": null,
+      "findings": null,
+      "canonical_outputs": [],
+      "legacy_package": null,
+      "proposal": "Docs/RC010_TEMPORAL_RESPONSE_STABILITY_PLAN.md",
+      "plan": {
+        "primary": "Dose-matched within-participant response change across repetition, with pre-stimulus and timing/history controls",
+        "secondary": "Early/late temporal-generalization matrices using independent calibration and evaluation data",
+        "decoder_target": "Primary decoder: low/mid/high amplitude within participant and waveform; waveform identity across blocks exploratory and structurally confounded with block time",
+        "hypotheses": [
+          "Response magnitude/latency/shape may change with repetition without assuming monotonic decline",
+          "Informative early decoding may generalize less well later",
+          "Late calibration may restore late performance, consistent with mapping change",
+          "Pre/post comparisons help distinguish broad drift from predominantly stimulus-aligned change"
+        ],
+        "candidate_features": "Fixed contralateral ROI and 50-ms voltage bins, matched pre -500 to -50 ms and post 50 to 500 ms; audit support and freeze summaries before fitting",
+        "classifier": "One fixed shrinkage LDA with small predefined feature set; training-only transforms",
+        "controls": [
+          "Match amplitude composition and calibration/test counts",
+          "No training accuracy as an early reference",
+          "Within-early, early-to-late, within-late and late-to-early evaluation",
+          "Pre-stimulus and channel-quality controls",
+          "Preserve actual intervals, interruptions and preceding stimulation history"
+        ],
+        "feasibility": "About ten repeats per tier limits independent early/late support; flag unsupported cells and retain direct trend analysis if decoding is uninformative",
+        "interpretation": "Temporal instability is not by itself proof of adaptation, an artifact or a confound; waveform/block-time identifiability remains limited",
+        "companion": "RC-009 regional maps can supply an optional behavioral temporal outcome",
+        "stage": "Planned only; chronology/support audit precedes frozen analysis choices and numerical work",
+        "weight_comparison": "Early/late class-contrast weights in common original sensor/time coordinates, accounting for scaling/PCA and calibration-resampling instability; compare measured response patterns, without equating weights to neural sources"
       }
     }
   ]

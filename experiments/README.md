@@ -2,7 +2,7 @@
 
 Each category has its own three-digit sequence starting at `001`. The prefixes are **WD** for waveform decoding, **RC** for response characterization, **SQ** for signal quality, and **US** for uncertainty and sensitivity. The Reference column lists the `E` numbers used in package names and earlier reports. For example, **RC-006** is the EEG charge study referenced as **E017**. Task and cohort information belongs in the registry and run guide. Run all commands from the repository root.
 
-**Updated: 2026-11-24.** 18 completed, 2 planned, 2 in progress. Completed means the specified analysis finished; it does not imply a positive scientific result.
+**Updated: 2026-11-27.** 18 completed, 4 planned, 2 in progress. Completed means the specified analysis finished; it does not imply a positive scientific result.
 
 Planned IDs are reserved; no empty executable packages or results are created for them. Use Planned, In progress, Completed, Blocked or Superseded. Use Scheduled only when an execution has an actual schedule. Status labels do not start jobs or recurring automations.
 
@@ -26,7 +26,7 @@ Can EEG features predict the delivered waveform or the participant's choice betw
 
 ### [RC — Stimulus-aligned response characterization](response_characterization/README.md)
 
-How do voltage and slope patterns vary with waveform, electrode, time and presentation position?
+How do stimulation settings and EEG relate to evoked responses and reported perception, including voltage/slope patterns and regional hand maps?
 
 | ID | Experiment | Dataset | Status | Last completed run | Findings | Reference |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -38,6 +38,8 @@ How do voltage and slope patterns vary with waveform, electrode, time and presen
 | RC-006 | [EEG response and nominal cathodic charge](response_characterization/e017_eeg_charge_relation/README.md) | Task 3 | Completed | 2026-11-09 | [Results](../Docs/E017_TASK3_CHARGE_RESULTS.md) | E017 |
 | RC-007 | [Predict nominal Task 4 charge from EEG](response_characterization/e019_task4_charge_prediction/README.md) | Task 4 | Completed | 2026-11-13 | [Results](../Docs/RC007_TASK4_CHARGE_PREDICTION.md) | E019 |
 | RC-008 | [Predict nominal Task 3 charge from EEG](response_characterization/e020_task3_charge_prediction/README.md) | Task 3 | Completed | 2026-11-13 | [Results](../Docs/RC008_TASK3_CHARGE_PREDICTION.md) | E020 |
+| RC-009 | [Regional hand-map responses to stimulation and EEG](../Docs/RC009_REGIONAL_PERCEPT_PROPOSAL.md) | Task 3 | Planned | - | - | E023 |
+| RC-010 | [Within-block Task 3 response stability and temporal generalization](../Docs/RC010_TEMPORAL_RESPONSE_STABILITY_PLAN.md) | Task 3 | Planned | - | - | E024 |
 
 ### [SQ — Signal quality, preprocessing and feature audits](signal_quality/README.md)
 

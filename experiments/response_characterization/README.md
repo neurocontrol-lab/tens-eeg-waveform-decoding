@@ -1,6 +1,6 @@
 # Stimulus-aligned response characterization
 
-How do voltage and slope patterns vary with waveform, electrode, time and presentation position?
+How do stimulation settings and EEG relate to evoked responses and reported perception, including voltage/slope patterns and regional hand maps?
 
 [All experiment statuses](../README.md)
 
@@ -14,3 +14,5 @@ How do voltage and slope patterns vary with waveform, electrode, time and presen
 | RC-006 | [EEG response and nominal cathodic charge](e017_eeg_charge_relation/README.md) | Task 3 | Completed |
 | RC-007 | [Predict nominal Task 4 charge from EEG](e019_task4_charge_prediction/README.md) | Task 4 | Completed |
 | RC-008 | [Predict nominal Task 3 charge from EEG](e020_task3_charge_prediction/README.md) | Task 3 | Completed |
+| RC-009 | [Regional hand-map responses to stimulation and EEG](../../Docs/RC009_REGIONAL_PERCEPT_PROPOSAL.md) | Task 3 | Planned |
+| RC-010 | [Within-block Task 3 response stability and temporal generalization](../../Docs/RC010_TEMPORAL_RESPONSE_STABILITY_PLAN.md) | Task 3 | Planned |
